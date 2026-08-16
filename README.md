@@ -7,6 +7,7 @@
 ## 功能
 
 - 状态栏通知图标替换
+- 息屏（AOD）时钟通知图标替换
 - 通知中心小图标替换（可关）
 - 图标来源可选规则图标或桌面主题，支持通知图标跟随桌面当前主题 / 自定义图标
 - Oplus Push 系统推送特判（可关）
@@ -34,7 +35,7 @@
 
 ## 图标来源
 
-状态栏、通知中心普通图标、Oplus 聚合摘要图标共享同一套图标来源逻辑。
+状态栏、息屏时钟、通知中心普通图标、Oplus 聚合摘要图标共享同一套图标来源逻辑。
 
 - **规则图标**：使用模块规则库图标，支持未适配占位符和单应用强制替换。
 - **桌面主题**：读取桌面当前主题或自定义图标。读取失败时回退系统原始通知图标，不回退规则图标，避免两套来源混用。
@@ -104,6 +105,7 @@ Fork 自 [fankes/ColorOSNotifyIcon](https://github.com/fankes/ColorOSNotifyIcon)
 - 用 [Miuix](https://github.com/compose-miuix-ui/miuix) 重写了 App UI
 - 功能收敛到通知图标增强，去除其余杂项功能
 - 支持通知图标跟随桌面主题或自定义图标
+- 补齐 ColorOS 经典时钟息屏通知图标（`LockScreenNotificationIconData` → AodPlugin，以及旧版 `NotificationLayout`）
 - 不做后台自动同步
 
 原版项目以原作者维护计划为准。

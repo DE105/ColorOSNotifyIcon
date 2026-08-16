@@ -112,6 +112,17 @@ internal class SystemUiRuntime(
                 ).install()
             }
         }
+
+        installFeature("aod") {
+            SystemUiMembers.resolveAod(classLoader, diagnostics)?.let { members ->
+                AodNotificationHooks(
+                    hooks = hooks,
+                    diagnostics = diagnostics,
+                    configuration = configuration,
+                    members = members,
+                ).install()
+            }
+        }
     }
 
     private inline fun runPublishedTask(

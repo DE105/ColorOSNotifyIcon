@@ -26,6 +26,7 @@ internal class NotificationPanelHooks(
 
     fun install() {
         installOplusHeaderHooks()
+        installGroupIconManagerHooks()
         members.headerOnContentUpdated?.let { method ->
             hooks.install(method, "systemui.panel.header.onContentUpdated") { chain ->
                 val result = chain.proceed()
@@ -67,6 +68,80 @@ internal class NotificationPanelHooks(
                     applyPanelIcon(wrapper, target = PanelIconTarget.OplusGroupSummary)
                 }
                 result
+            }
+        }
+    }
+
+    /**
+     * ColorOS collapsed-group UI extracts WallpaperColors from the app/small icon and paints a
+     * solid capsule ("色块"). When we already have a rule/theme replacement, take over icon + pill.
+     */
+    private fun installGroupIconManagerHooks() {
+        members.groupIconInitIconViewColor?.let { method ->
+            hooks.install(method, "systemui.panel.group.initIconViewColor") { chain ->
+                val snapshot = configuration.snapshot
+                if (!snapshot.config.panelIconReplacementEnabled) return@install chain.proceed()
+                val entry = chain.args.getOrNull(2) ?: return@install chain.proceed()
+                val iconView = chain.args.getOrNull(1) as? ImageView
+                    ?: return@install chain.proceed()
+                try {
+                    val sbn = members.notificationEntryGetSbn.invoke(entry) as? StatusBarNotification
+                        ?: return@install chain.proceed()
+                    val plan = snapshot.resolver.resolvePanelIconPlan(
+                        context = iconView.context,
+                        sbn = sbn,
+                        originalSmallIcon = sbn.originalSmallIcon(diagnostics, snapshot.revision),
+                    ) ?: return@install chain.proceed()
+                    if (!configuration.isCurrent(snapshot)) return@install chain.proceed()
+
+                    iconView.clearColorFilter()
+                    iconView.imageTintList = null
+                    iconView.setImageDrawable(plan.drawable)
+                    plan.tintColor?.let { tint ->
+                        iconView.colorFilter = PorterDuffColorFilter(tint, PorterDuff.Mode.SRC_IN)
+                    }
+                    null
+                } catch (exception: Exception) {
+                    diagnostics.runtimeFailure(
+                        scope = "panel:group_icon_color",
+                        message = "折叠分组图标着色覆盖失败，交回 ColorOS 原实现",
+                        cause = exception,
+                        revision = snapshot.revision,
+                    )
+                    chain.proceed()
+                }
+            }
+        }
+
+        members.groupIconInitPillBgAndNumberColor?.let { method ->
+            hooks.install(method, "systemui.panel.group.initPillBgAndNumberColor") { chain ->
+                val snapshot = configuration.snapshot
+                if (!snapshot.config.panelIconReplacementEnabled) return@install chain.proceed()
+                val iconInfo = chain.args.getOrNull(1) ?: return@install chain.proceed()
+                val frame = chain.args.getOrNull(0) as? android.widget.FrameLayout
+                    ?: return@install chain.proceed()
+                try {
+                    val isGrays = iconInfo.javaClass.methods
+                        .firstOrNull { it.name == "isGraysIcon" && it.parameterTypes.isEmpty() }
+                        ?.invoke(iconInfo) as? Boolean
+                    // Colorful app-icon path paints a vibrant capsule; neutralize it.
+                    if (isGrays == true) return@install chain.proceed()
+                    val result = chain.proceed()
+                    val night = (frame.resources.configuration.uiMode and
+                        android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                        android.content.res.Configuration.UI_MODE_NIGHT_YES
+                    val muted = if (night) 0x33FFFFFF.toInt() else 0x33000000
+                    (frame.background as? android.graphics.drawable.GradientDrawable)?.setColor(muted)
+                    result
+                } catch (exception: Exception) {
+                    diagnostics.runtimeFailure(
+                        scope = "panel:group_pill_color",
+                        message = "折叠分组胶囊去色失败，交回 ColorOS 原实现",
+                        cause = exception,
+                        revision = snapshot.revision,
+                    )
+                    chain.proceed()
+                }
             }
         }
     }
@@ -142,7 +217,10 @@ internal class NotificationPanelHooks(
             val rowView = row as? View
             val icon = when (target) {
                 PanelIconTarget.Header -> members.headerGetIcon?.invoke(wrapper) as? ImageView
-                PanelIconTarget.OplusGroupSummary -> rowView?.findOplusGroupSummaryIcon()
+                // GroupIconManager colors NotificationHeaderViewWrapper.mIcon (CachingIconView).
+                PanelIconTarget.OplusGroupSummary ->
+                    (members.headerGetIcon?.invoke(wrapper) as? ImageView)
+                        ?: rowView?.findOplusGroupSummaryIcon()
             } ?: run {
                 if (target == PanelIconTarget.OplusGroupSummary && allowDeferredLookup && rowView != null) {
                     rowView.post {
