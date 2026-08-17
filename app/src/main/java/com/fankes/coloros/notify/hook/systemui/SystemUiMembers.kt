@@ -1,5 +1,6 @@
 package com.fankes.coloros.notify.hook.systemui
 
+import android.app.Notification
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
@@ -24,6 +25,7 @@ internal data class StatusBarMembers(
     val statusBarPreloadedIcon: Field,
     val statusBarIconType: Field,
     val peopleAvatarIconType: Any,
+    val notificationSmallIcon: Field?,
 )
 
 internal data class OplusHeaderMembers(
@@ -44,6 +46,10 @@ internal data class PanelMembers(
     val oplusGroupWrapper: Class<*>?,
     val oplusGroupInitIcon: Method?,
     val oplusGroupResolveHeaderViews: Method?,
+    val oplusGroupGetIconView: Method?,
+    val groupIconInitIconViewColor: Method?,
+    val groupIconInitPillBgAndNumberColor: Method?,
+    val notificationEntryGetKey: Method?,
 )
 
 internal data class RefreshMembers(
@@ -55,6 +61,22 @@ internal data class EntryUseAppIconMembers(
     val predicate: Method,
     val getBase: Method,
     val notificationEntryGetSbn: Method,
+)
+
+internal data class AodMembers(
+    val updateNotificationView: Method?,
+    val layoutContext: Field?,
+    val notificationSmallIcon: Field?,
+    val lockScreenIconDataCtor: java.lang.reflect.Constructor<*>?,
+    val lockScreenIconDataSetIcon: Method?,
+    val lockScreenIconDataGetKey: Method?,
+    val lockScreenIconDataGetPackageName: Method?,
+    val updateNotificationIconData: Method?,
+    val dependencyExClass: Class<*>?,
+    val dependencyExInstance: Field?,
+    val dependencyExGetDependency: Method?,
+    val lockScreenDispatcherClass: Class<*>?,
+    val getLockScreenNotificationIconData: Method?,
 )
 
 internal object SystemUiMembers {
@@ -136,6 +158,11 @@ internal object SystemUiMembers {
         val peopleAvatarIconType = statusBarIconType.enumConstants
             ?.firstOrNull { (it as? Enum<*>)?.name == PEOPLE_AVATAR_ICON_TYPE }
             ?: return missing("people_avatar_type", "StatusBarIcon.Type.PeopleAvatar")
+        val notificationSmallIcon = Reflection.findField(
+            Notification::class.java,
+            "mSmallIcon",
+            Icon::class.java,
+        )
 
         return StatusBarMembers(
             updateGrayScale = updateGrayScale,
@@ -150,6 +177,7 @@ internal object SystemUiMembers {
             statusBarPreloadedIcon = statusBarPreloadedIcon,
             statusBarIconType = statusBarIconTypeField,
             peopleAvatarIconType = peopleAvatarIconType,
+            notificationSmallIcon = notificationSmallIcon,
         )
     }
 
@@ -238,6 +266,9 @@ internal object SystemUiMembers {
         val oplusGroupResolveHeaderViews = oplusGroupWrapper?.let {
             Reflection.findMethodReturning(it, "resolveHeaderViews", Void.TYPE)
         }
+        val oplusGroupGetIconView = oplusGroupWrapper?.let {
+            Reflection.findMethodReturning(it, "getIconView", ImageView::class.java)
+        }
         if (
             oplusGroupWrapper == null ||
             (oplusGroupInitIcon == null && oplusGroupResolveHeaderViews == null)
@@ -245,6 +276,49 @@ internal object SystemUiMembers {
             diagnostics.memberMissing(
                 scope = "systemui:panel:oplus_group",
                 message = "Oplus 聚合摘要成员签名不完整，跳过聚合摘要图标路径",
+            )
+        }
+
+        val groupIconManager = classes.optional(GROUP_ICON_MANAGER)
+        val iconInfoClass = classes.optional(GROUP_ICON_INFO)
+        val cachingIconView = classes.optional(CACHING_ICON_VIEW)
+        val groupIconInitIconViewColor = if (
+            groupIconManager != null && iconInfoClass != null && cachingIconView != null
+        ) {
+            Reflection.findMethodReturning(
+                groupIconManager,
+                "initIconViewColor",
+                Void.TYPE,
+                iconInfoClass,
+                cachingIconView,
+                notificationEntry,
+            )
+        } else {
+            null
+        }
+        val groupIconInitPillBgAndNumberColor = if (
+            groupIconManager != null && iconInfoClass != null
+        ) {
+            Reflection.findMethodReturning(
+                groupIconManager,
+                "initPillBgAndNumberColor",
+                Void.TYPE,
+                android.widget.FrameLayout::class.java,
+                iconInfoClass,
+                android.widget.TextView::class.java,
+            )
+        } else {
+            null
+        }
+        val notificationEntryGetKey = Reflection.findMethodReturning(
+            notificationEntry,
+            "getKey",
+            String::class.java,
+        )
+        if (groupIconInitIconViewColor == null || groupIconInitPillBgAndNumberColor == null) {
+            diagnostics.memberMissing(
+                scope = "systemui:panel:group_icon_manager",
+                message = "GroupIconManager 着色成员不完整，折叠分组可能仍按宿主取色绘制色块",
             )
         }
 
@@ -307,6 +381,10 @@ internal object SystemUiMembers {
             oplusGroupWrapper = oplusGroupWrapper,
             oplusGroupInitIcon = oplusGroupInitIcon,
             oplusGroupResolveHeaderViews = oplusGroupResolveHeaderViews,
+            oplusGroupGetIconView = oplusGroupGetIconView,
+            groupIconInitIconViewColor = groupIconInitIconViewColor,
+            groupIconInitPillBgAndNumberColor = groupIconInitPillBgAndNumberColor,
+            notificationEntryGetKey = notificationEntryGetKey,
         )
     }
 
@@ -334,6 +412,110 @@ internal object SystemUiMembers {
             "useAppIconForSmallIcon",
             Boolean::class.javaPrimitiveType!!,
             android.app.Notification::class.java,
+        )
+    }
+
+    fun resolveAod(
+        classLoader: ClassLoader,
+        diagnostics: Diagnostics,
+    ): AodMembers? {
+        val layout = loadOptional(AOD_NOTIFICATION_LAYOUT, classLoader)
+        val updateNotificationView = layout?.let {
+            Reflection.findMethodReturning(
+                it,
+                "updateNotificationView",
+                Void.TYPE,
+                StatusBarNotification::class.java,
+            )
+        }
+        val layoutContext = layout?.let {
+            Reflection.findField(it, "mContext", Context::class.java)
+        }
+        val notificationSmallIcon = Reflection.findField(
+            Notification::class.java,
+            "mSmallIcon",
+            Icon::class.java,
+        )
+
+        val lockScreenIconData = loadOptional(LOCK_SCREEN_NOTIFICATION_ICON_DATA, classLoader)
+        val lockScreenIconDataCtor = lockScreenIconData?.declaredConstructors?.firstOrNull { ctor ->
+            val params = ctor.parameterTypes
+            params.size == 4 &&
+                params[0] == String::class.java &&
+                params[1] == String::class.java &&
+                Drawable::class.java.isAssignableFrom(params[2]) &&
+                (params[3] == Integer.TYPE || params[3] == Int::class.javaPrimitiveType)
+        }?.also { it.isAccessible = true }
+        val lockScreenIconDataSetIcon = lockScreenIconData?.let {
+            Reflection.findMethodReturning(it, "setIcon", Void.TYPE, Drawable::class.java)
+        }
+        val lockScreenIconDataGetKey = lockScreenIconData?.let {
+            Reflection.findMethodReturning(it, "getKey", String::class.java)
+        }
+        val lockScreenIconDataGetPackageName = lockScreenIconData?.let {
+            Reflection.findMethodReturning(it, "getPackageName", String::class.java)
+        }
+
+        val aodPlugin = loadOptional(AOD_PLUGIN_CALL_IMPL, classLoader)
+        val updateNotificationIconData = aodPlugin?.let {
+            Reflection.findMethodReturning(it, "updateNotificationIconData", Void.TYPE)
+        }
+
+        val dependencyExClass = loadOptional(DEPENDENCY_EX, classLoader)
+        val dependencyExInstance = dependencyExClass?.let {
+            Reflection.findField(it, "sDependency", it)
+        }
+        val dependencyExGetDependency = dependencyExClass?.let {
+            Reflection.findMethodReturning(it, "getDependency", Any::class.java, Class::class.java)
+        }
+        val lockScreenDispatcherClass = loadOptional(LOCK_SCREEN_NOTIFICATION_DISPATCHER, classLoader)
+        val getLockScreenNotificationIconData = lockScreenDispatcherClass?.let {
+            Reflection.findMethod(it, "getLockScreenNotificationIconData")
+        }
+
+        val hasPluginPath =
+            updateNotificationIconData != null &&
+                lockScreenIconDataSetIcon != null &&
+                lockScreenIconDataGetKey != null &&
+                lockScreenIconDataGetPackageName != null &&
+                dependencyExInstance != null &&
+                dependencyExGetDependency != null &&
+                lockScreenDispatcherClass != null &&
+                getLockScreenNotificationIconData != null
+        val hasCtorPath = lockScreenIconDataCtor != null
+        val hasLayoutPath =
+            updateNotificationView != null &&
+                layoutContext != null &&
+                notificationSmallIcon != null
+
+        if (!hasPluginPath && !hasCtorPath && !hasLayoutPath) {
+            diagnostics.memberMissing(
+                scope = "systemui:aod:paths",
+                message = "未找到经典时钟息屏图标路径（AodPlugin / LockScreenNotificationIconData / NotificationLayout）",
+            )
+            return null
+        }
+        if (!hasPluginPath) {
+            diagnostics.memberMissing(
+                scope = "systemui:aod:plugin_path",
+                message = "AodPlugin.updateNotificationIconData 路径不完整，依赖构造函数/Layout 兜底",
+            )
+        }
+
+        return AodMembers(
+            updateNotificationView = updateNotificationView.takeIf { hasLayoutPath },
+            layoutContext = layoutContext,
+            notificationSmallIcon = notificationSmallIcon,
+            lockScreenIconDataCtor = lockScreenIconDataCtor,
+            lockScreenIconDataSetIcon = lockScreenIconDataSetIcon,
+            lockScreenIconDataGetKey = lockScreenIconDataGetKey,
+            lockScreenIconDataGetPackageName = lockScreenIconDataGetPackageName,
+            updateNotificationIconData = updateNotificationIconData.takeIf { hasPluginPath },
+            dependencyExClass = dependencyExClass,
+            dependencyExInstance = dependencyExInstance,
+            dependencyExGetDependency = dependencyExGetDependency,
+            lockScreenDispatcherClass = lockScreenDispatcherClass,
+            getLockScreenNotificationIconData = getLockScreenNotificationIconData,
         )
     }
 
@@ -406,6 +588,11 @@ internal object SystemUiMembers {
         "com.android.systemui.statusbar.notification.row.wrapper.NotificationHeaderViewWrapper"
     private const val OPLUS_GROUP_WRAPPER =
         "com.oplus.systemui.notification.row.oplusgroup.OplusNotificationGroupTemplateWrapper"
+    private const val GROUP_ICON_MANAGER =
+        "com.oplus.systemui.notification.row.oplusgroup.GroupIconManager"
+    private const val GROUP_ICON_INFO =
+        "com.oplus.systemui.notification.row.oplusgroup.GroupIconManager\$IconInfo"
+    private const val CACHING_ICON_VIEW = "com.android.internal.widget.CachingIconView"
     private const val OPLUS_HEADER_EXTENSION =
         "com.oplus.systemui.statusbar.notification.row.wrapper.OplusNotificationHeaderViewWrapperExImp"
     private const val VIEW_CONFIG_COORDINATOR =
@@ -414,4 +601,13 @@ internal object SystemUiMembers {
         "com.android.systemui.statusbar.notification.collection.NotifPipeline"
     private const val OPLUS_SMALL_ICON_UTIL =
         "com.oplus.systemui.statusbar.notification.util.OplusNotificationSmallIconUtil"
+    private const val AOD_NOTIFICATION_LAYOUT =
+        "com.oplus.systemui.aod.aodclock.off.notification.NotificationLayout"
+    private const val LOCK_SCREEN_NOTIFICATION_ICON_DATA =
+        "com.android.systemui.util.LockScreenNotificationIconData"
+    private const val AOD_PLUGIN_CALL_IMPL =
+        "com.oplus.systemui.aod.plugin.AodPluginCallImpl"
+    private const val DEPENDENCY_EX = "com.android.systemui.DependencyEx"
+    private const val LOCK_SCREEN_NOTIFICATION_DISPATCHER =
+        "com.android.systemui.statusbar.LockScreenNotificationDispatcher"
 }

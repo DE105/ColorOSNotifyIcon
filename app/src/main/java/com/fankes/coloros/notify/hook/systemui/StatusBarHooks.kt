@@ -115,7 +115,16 @@ internal class StatusBarHooks(
                     ?: return@install statusBarIcon
                 members.statusBarPreloadedIcon.set(replacement, null)
                 members.statusBarIcon.set(replacement, plan.icon)
+                // Keep Notification.smallIcon in sync so ColorOS group/AOD paths that read it
+                // directly (GroupIconManager, etc.) see the same replacement.
+                members.notificationSmallIcon?.set(sbn.notification, plan.icon)
                 iconClaims.claimDescriptor(replacement, sbn.key, plan.isColorable)
+                StatusBarIconReplacementCache.put(
+                    notificationKey = sbn.key,
+                    packageName = sbn.packageName,
+                    icon = plan.icon,
+                    isColorable = plan.isColorable,
+                )
                 return@install replacement
             } catch (exception: Exception) {
                 diagnostics.runtimeFailure(
