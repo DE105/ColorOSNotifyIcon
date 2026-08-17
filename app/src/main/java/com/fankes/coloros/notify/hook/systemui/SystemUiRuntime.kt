@@ -123,6 +123,17 @@ internal class SystemUiRuntime(
                 ).install()
             }
         }
+
+        installFeature("lockscreen_capsule") {
+            SystemUiMembers.resolveLockScreenCapsule(classLoader, diagnostics)?.let { members ->
+                LockScreenCapsuleHooks(
+                    hooks = hooks,
+                    diagnostics = diagnostics,
+                    configuration = configuration,
+                    members = members,
+                ).install()
+            }
+        }
     }
 
     private inline fun runPublishedTask(

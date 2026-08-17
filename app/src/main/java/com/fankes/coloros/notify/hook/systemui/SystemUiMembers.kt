@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.service.notification.StatusBarNotification
+import android.widget.FrameLayout
 import android.widget.ImageView
 import com.fankes.coloros.notify.diagnostics.Diagnostics
 import com.fankes.coloros.notify.hook.memberMissing
@@ -61,6 +62,32 @@ internal data class EntryUseAppIconMembers(
     val predicate: Method,
     val getBase: Method,
     val notificationEntryGetSbn: Method,
+)
+
+internal data class LockScreenCapsuleMembers(
+    val notificationIconDataCtors: List<java.lang.reflect.Constructor<*>>,
+    val notificationEntryGetSbn: Method,
+    val capsuleGetRoundedIcon: Method?,
+    val capsuleSetupIconAndBadges: Method?,
+    val capsuleBind: Method?,
+    val capsuleCardGetIcon: Method?,
+    val notificationIconDataGetEntry: Method?,
+    val notificationIconDataGetKey: Method?,
+    val notificationIconDataGetPackageName: Method?,
+    val notificationIconDataIconField: Field?,
+    val notificationIconDataSmallIconField: Field?,
+    val notificationIconDataIconColorField: Field?,
+    val innerDataGetIconData: Method?,
+    val innerDataGetCardType: Method?,
+    val innerDataGetReportDataList: Method?,
+    val innerDataIconColorField: Field?,
+    val groupIconInitCapsuleIconColor: Method?,
+    val groupIconAccessInitCapsuleIconColor: Method?,
+    val groupIconAccessInitIconViewColor: Method?,
+    val groupIconInitPillBgAndNumberColor: Method?,
+    val groupIconInitEntryIconDrawable: Method?,
+    val notificationSmallIcon: Field?,
+    val wrapWithWhiteBg: Method?,
 )
 
 internal data class AodMembers(
@@ -415,6 +442,247 @@ internal object SystemUiMembers {
         )
     }
 
+    fun resolveLockScreenCapsule(
+        classLoader: ClassLoader,
+        diagnostics: Diagnostics,
+    ): LockScreenCapsuleMembers? {
+        val notificationEntry = loadOptional(NOTIFICATION_ENTRY, classLoader) ?: return null
+        val notificationEntryGetSbn = Reflection.findMethodReturning(
+            notificationEntry,
+            "getSbn",
+            StatusBarNotification::class.java,
+        ) ?: run {
+            diagnostics.memberMissing(
+                scope = "systemui:lockscreen:capsule:entry",
+                message = "未找到 NotificationEntry.getSbn()，跳过锁屏胶囊图标替换",
+            )
+            return null
+        }
+
+        val iconDataClass = loadOptional(CAPSULE_NOTIFICATION_ICON_DATA, classLoader)
+        val ctors = iconDataClass?.declaredConstructors.orEmpty().filter { ctor ->
+            val params = ctor.parameterTypes
+            params.size == 8 &&
+                params[0] == String::class.java &&
+                params[1] == String::class.java &&
+                Drawable::class.java.isAssignableFrom(params[2]) &&
+                params[3] == Icon::class.java &&
+                (params[4] == Boolean::class.javaPrimitiveType || params[4] == java.lang.Boolean.TYPE) &&
+                params[5] == Integer::class.java &&
+                notificationEntry.isAssignableFrom(params[6])
+        }.onEach { it.isAccessible = true }
+
+        if (ctors.isEmpty()) {
+            diagnostics.memberMissing(
+                scope = "systemui:lockscreen:capsule:icon_data",
+                message = "未找到 CapsuleNotificationDataController.NotificationIconData 构造函数（ColorOS 16 锁屏胶囊）",
+            )
+            return null
+        }
+
+        val capsuleCardView = loadOptional(CAPSULE_NOTIFICATION_CARD_VIEW, classLoader)
+        val innerDataClass = loadOptional(CAPSULE_NOTIFICATION_INNER_DATA, classLoader)
+        val capsuleGetRoundedIcon = if (capsuleCardView != null && iconDataClass != null) {
+            Reflection.findMethodReturning(
+                capsuleCardView,
+                "getRoundedIcon",
+                Drawable::class.java,
+                iconDataClass,
+            )
+        } else {
+            null
+        }
+        val capsuleSetupIconAndBadges = if (capsuleCardView != null && innerDataClass != null) {
+            Reflection.findMethodReturning(
+                capsuleCardView,
+                "setupIconAndBadges",
+                Void.TYPE,
+                innerDataClass,
+            )
+        } else {
+            null
+        }
+        val capsuleBind = if (capsuleCardView != null && innerDataClass != null) {
+            Reflection.findMethodReturning(
+                capsuleCardView,
+                "bind",
+                Void.TYPE,
+                innerDataClass,
+            )
+        } else {
+            null
+        }
+        val capsuleCardGetIcon = capsuleCardView?.let {
+            Reflection.findMethodReturning(it, "getIcon", ImageView::class.java)
+        }
+        val notificationIconDataGetEntry = iconDataClass?.let {
+            Reflection.findMethodReturning(it, "getEntry", notificationEntry)
+        }
+        val notificationIconDataGetKey = iconDataClass?.let {
+            Reflection.findMethodReturning(it, "getKey", String::class.java)
+        }
+        val notificationIconDataGetPackageName = iconDataClass?.let {
+            Reflection.findMethodReturning(it, "getPackageName", String::class.java)
+        }
+        val notificationIconDataIconField = iconDataClass?.let {
+            Reflection.findField(it, "icon", Drawable::class.java)
+        }
+        val notificationIconDataSmallIconField = iconDataClass?.let {
+            Reflection.findField(it, "smallIcon", Icon::class.java)
+        }
+        val notificationIconDataIconColorField = iconDataClass?.let {
+            Reflection.findField(it, "iconColor", Integer::class.java)
+        }
+        val innerDataGetIconData = innerDataClass?.let {
+            Reflection.findMethodReturning(it, "getIconData", iconDataClass)
+        }
+        val innerDataGetCardType = innerDataClass?.let { clazz ->
+            loadOptional(CAPSULE_NOTIFICATION_CARD_TYPE, classLoader)?.let { cardType ->
+                Reflection.findMethodReturning(clazz, "getCardType", cardType)
+            }
+        }
+        val innerDataGetReportDataList = innerDataClass?.let {
+            Reflection.findMethod(it, "getReportDataList")
+        }
+        val innerDataIconColorField = innerDataClass?.let {
+            Reflection.findField(it, "iconColor", Integer::class.java)
+        }
+
+        val groupIconManager = loadOptional(GROUP_ICON_MANAGER, classLoader)
+        val iconInfoClass = loadOptional(GROUP_ICON_INFO, classLoader)
+        val cachingIconView = loadOptional(CACHING_ICON_VIEW, classLoader)
+        val groupIconInitCapsuleIconColor = if (
+            groupIconManager != null && iconInfoClass != null && cachingIconView != null
+        ) {
+            Reflection.findMethodReturning(
+                groupIconManager,
+                "initCapsuleIconColor",
+                Void.TYPE,
+                iconInfoClass,
+                cachingIconView,
+                notificationEntry,
+            )
+        } else {
+            null
+        }
+        val groupIconAccessInitCapsuleIconColor = if (
+            groupIconManager != null && iconInfoClass != null && cachingIconView != null
+        ) {
+            Reflection.findMethodReturning(
+                groupIconManager,
+                "access\$initCapsuleIconColor",
+                Void.TYPE,
+                groupIconManager,
+                iconInfoClass,
+                cachingIconView,
+                notificationEntry,
+            )
+        } else {
+            null
+        }
+        val groupIconAccessInitIconViewColor = if (
+            groupIconManager != null && iconInfoClass != null && cachingIconView != null
+        ) {
+            Reflection.findMethodReturning(
+                groupIconManager,
+                "access\$initIconViewColor",
+                Void.TYPE,
+                groupIconManager,
+                iconInfoClass,
+                cachingIconView,
+                notificationEntry,
+            )
+        } else {
+            null
+        }
+        val groupIconInitPillBgAndNumberColor = if (
+            groupIconManager != null && iconInfoClass != null
+        ) {
+            Reflection.findMethodReturning(
+                groupIconManager,
+                "initPillBgAndNumberColor",
+                Void.TYPE,
+                FrameLayout::class.java,
+                iconInfoClass,
+                android.widget.TextView::class.java,
+            )
+        } else {
+            null
+        }
+        val groupIconInitEntryIconDrawable = if (
+            groupIconManager != null &&
+            cachingIconView != null
+        ) {
+            Reflection.findMethodReturning(
+                groupIconManager,
+                "initEntryIconDrawable",
+                Void.TYPE,
+                notificationEntry,
+                cachingIconView,
+                android.widget.TextView::class.java,
+                FrameLayout::class.java,
+                Boolean::class.javaPrimitiveType!!,
+                kotlin.jvm.functions.Function1::class.java,
+            )
+        } else {
+            null
+        }
+        val notificationSmallIcon = Reflection.findField(
+            Notification::class.java,
+            "mSmallIcon",
+            Icon::class.java,
+        )
+        val wrapWithWhiteBg = loadOptional(CAPSULE_NOTIFICATION_UTILS, classLoader)?.let {
+            Reflection.findMethodReturning(
+                it,
+                "wrapWithWhiteBg",
+                Drawable::class.java,
+                Drawable::class.java,
+                Context::class.java,
+                Float::class.javaPrimitiveType!!,
+            )
+        }
+
+        if (capsuleGetRoundedIcon == null) {
+            diagnostics.memberMissing(
+                scope = "systemui:lockscreen:capsule:rounded_icon",
+                message = "未找到 CapsuleNotificationCardView.getRoundedIcon，单条锁屏胶囊可能仍显示默认图标",
+            )
+        }
+        if (groupIconInitCapsuleIconColor == null && groupIconAccessInitCapsuleIconColor == null) {
+            diagnostics.memberMissing(
+                scope = "systemui:lockscreen:capsule:group_icon",
+                message = "未找到 GroupIconManager 锁屏胶囊着色入口，聚合锁屏胶囊可能仍显示灰色",
+            )
+        }
+
+        return LockScreenCapsuleMembers(
+            notificationIconDataCtors = ctors,
+            notificationEntryGetSbn = notificationEntryGetSbn,
+            capsuleGetRoundedIcon = capsuleGetRoundedIcon,
+            capsuleSetupIconAndBadges = capsuleSetupIconAndBadges,
+            capsuleBind = capsuleBind,
+            capsuleCardGetIcon = capsuleCardGetIcon,
+            notificationIconDataGetEntry = notificationIconDataGetEntry,
+            notificationIconDataGetKey = notificationIconDataGetKey,
+            notificationIconDataGetPackageName = notificationIconDataGetPackageName,
+            notificationIconDataIconField = notificationIconDataIconField,
+            notificationIconDataSmallIconField = notificationIconDataSmallIconField,
+            notificationIconDataIconColorField = notificationIconDataIconColorField,
+            innerDataGetIconData = innerDataGetIconData,
+            innerDataGetCardType = innerDataGetCardType,
+            innerDataGetReportDataList = innerDataGetReportDataList,
+            innerDataIconColorField = innerDataIconColorField,
+            groupIconInitCapsuleIconColor = groupIconInitCapsuleIconColor,
+            groupIconAccessInitCapsuleIconColor = groupIconAccessInitCapsuleIconColor,
+            groupIconAccessInitIconViewColor = groupIconAccessInitIconViewColor,
+            groupIconInitPillBgAndNumberColor = groupIconInitPillBgAndNumberColor,
+            groupIconInitEntryIconDrawable = groupIconInitEntryIconDrawable,
+            notificationSmallIcon = notificationSmallIcon,
+            wrapWithWhiteBg = wrapWithWhiteBg,
+        )
+    }
+
     fun resolveAod(
         classLoader: ClassLoader,
         diagnostics: Diagnostics,
@@ -610,4 +878,14 @@ internal object SystemUiMembers {
     private const val DEPENDENCY_EX = "com.android.systemui.DependencyEx"
     private const val LOCK_SCREEN_NOTIFICATION_DISPATCHER =
         "com.android.systemui.statusbar.LockScreenNotificationDispatcher"
+    private const val CAPSULE_NOTIFICATION_ICON_DATA =
+        "com.oplus.systemui.notification.lockscreen.notification.CapsuleNotificationDataController\$NotificationIconData"
+    private const val CAPSULE_NOTIFICATION_INNER_DATA =
+        "com.oplus.systemui.notification.lockscreen.notification.CapsuleNotificationDataController\$CapsuleNotificationInnerData"
+    private const val CAPSULE_NOTIFICATION_CARD_TYPE =
+        "com.oplus.systemui.notification.lockscreen.notification.CapsuleNotificationDataController\$CardType"
+    private const val CAPSULE_NOTIFICATION_CARD_VIEW =
+        "com.oplus.systemui.notification.lockscreen.notification.CapsuleNotificationCardView"
+    private const val CAPSULE_NOTIFICATION_UTILS =
+        "com.oplus.systemui.notification.lockscreen.notification.CapsuleNotificationUtils"
 }
