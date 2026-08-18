@@ -5,6 +5,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.io.InputStream
 import java.security.MessageDigest
+import java.util.Locale
 
 class RuleParseException(
     message: String,
@@ -14,6 +15,8 @@ class RuleParseException(
 data class RuleOverrides(
     val enabled: Map<String, Boolean> = emptyMap(),
     val enabledAll: Map<String, Boolean> = emptyMap(),
+    val iconSource: Map<String, String> = emptyMap(),
+    val customNames: Map<String, String> = emptyMap(),
 )
 
 class RuleCatalog internal constructor(
@@ -28,14 +31,56 @@ class RuleCatalog internal constructor(
     }
 
     fun resolve(overrides: RuleOverrides = RuleOverrides()): ResolvedRuleCatalog {
-        val rules = definitions.map { definition ->
-            IconRule(
+        val rules = ArrayList<IconRule>(definitions.size + overrides.iconSource.size)
+        definitions.forEach { definition ->
+            val requested = requestedIconSource(overrides, definition.packageName)
+            rules += IconRule(
                 definition = definition,
                 isEnabled = overrides.enabled[definition.packageName] ?: definition.enabledByDefault,
-                isEnabledAll = overrides.enabledAll[definition.packageName] ?: definition.enabledAllByDefault,
+                isEnabledAll = overrides.enabledAll[definition.packageName]
+                    ?: definition.enabledAllByDefault,
+                iconSourcePackage = requested,
+                sourcedFrom = requested?.let(byPackage::get),
+                isLibraryEntry = true,
             )
         }
+        overrides.iconSource.keys
+            .asSequence()
+            .filter { target ->
+                target !in byPackage && RuleCatalogParser.isValidPackageName(target)
+            }
+            .mapNotNull { target ->
+                val requested = requestedIconSource(overrides, target) ?: return@mapNotNull null
+                val sourceDef = byPackage[requested] ?: return@mapNotNull null
+                val customName = overrides.customNames[target]?.trim()?.takeIf(String::isNotEmpty)
+                IconRule(
+                    definition = RuleDefinition(
+                        appName = customName ?: target,
+                        packageName = target,
+                        icon = sourceDef.icon,
+                        iconColor = sourceDef.iconColor,
+                        contributorName = "",
+                        enabledByDefault = true,
+                        enabledAllByDefault = false,
+                    ),
+                    isEnabled = overrides.enabled[target] ?: true,
+                    isEnabledAll = overrides.enabledAll[target] ?: false,
+                    iconSourcePackage = requested,
+                    sourcedFrom = sourceDef,
+                    isLibraryEntry = false,
+                )
+            }
+            .sortedBy { it.appName.lowercase(Locale.getDefault()) }
+            .forEach(rules::add)
         return ResolvedRuleCatalog(rules)
+    }
+
+    private fun requestedIconSource(overrides: RuleOverrides, targetPackage: String): String? {
+        val source = overrides.iconSource[targetPackage]?.trim()?.takeIf(String::isNotEmpty)
+            ?: return null
+        if (source == targetPackage) return null
+        if (!RuleCatalogParser.isValidPackageName(source)) return null
+        return source
     }
 }
 
@@ -202,8 +247,13 @@ object RuleCatalogParser {
     private const val HASH_BUFFER_BYTES = 16 * 1024
     private const val MAX_JSON_CHARACTERS = RulePayloadIO.MAX_PAYLOAD_BYTES
     private const val MAX_RULE_COUNT = 4096
-    private const val MAX_PACKAGE_NAME_CHARACTERS = 255
-    private const val MAX_DISPLAY_FIELD_CHARACTERS = 256
+    internal const val MAX_PACKAGE_NAME_CHARACTERS = 255
+    internal const val MAX_DISPLAY_FIELD_CHARACTERS = 256
     private val PACKAGE_NAME = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*")
+
+    internal fun isValidPackageName(packageName: String): Boolean =
+        packageName.isNotEmpty() &&
+            packageName.length <= MAX_PACKAGE_NAME_CHARACTERS &&
+            PACKAGE_NAME.matches(packageName)
 
 }

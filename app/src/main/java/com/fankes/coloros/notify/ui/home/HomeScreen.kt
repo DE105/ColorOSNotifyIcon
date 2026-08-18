@@ -3,23 +3,23 @@ package com.fankes.coloros.notify.ui.home
 import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.os.Build
-import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,14 +29,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fankes.coloros.notify.BuildConfig
 import com.fankes.coloros.notify.R
 import com.fankes.coloros.notify.diagnostics.AppDiagnostics
@@ -44,6 +46,7 @@ import com.fankes.coloros.notify.diagnostics.DiagnosticEvent
 import com.fankes.coloros.notify.diagnostics.DiagnosticLevel
 import com.fankes.coloros.notify.diagnostics.OccurrencePolicy
 import com.fankes.coloros.notify.rules.RuleStore
+import com.fankes.coloros.notify.ui.component.PreferenceGroup
 import com.fankes.coloros.notify.ui.theme.ColorOSNotifyIconTheme
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -53,24 +56,17 @@ import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.ScrollBehavior
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.basic.Check
 import top.yukonga.miuix.kmp.icon.extended.Download
-import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
-import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
-import top.yukonga.miuix.kmp.squircle.squircleClip
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -81,45 +77,33 @@ private const val SOFTWARE_VERSION_PROPERTY = "ro.build.display.id.show"
 @Composable
 fun HomeScreen(
     state: HomeScreenState,
+    contentPadding: PaddingValues,
+    scrollBehavior: ScrollBehavior,
+    snackbarHostState: SnackbarHostState,
     onSyncRules: ((String) -> Unit) -> Unit,
     onRestartSystemUi: ((String) -> Unit) -> Unit,
-    onOpenRules: () -> Unit,
     onRulesEnabledChange: (Boolean, (String) -> Unit) -> Unit,
     onIconSourceModeChange: (RuleStore.IconSourceMode, (String) -> Unit) -> Unit,
     onPanelIconReplacementEnabledChange: (Boolean, (String) -> Unit) -> Unit,
     onOplusPushSpecialHandlingEnabledChange: (Boolean, (String) -> Unit) -> Unit,
     onPlaceholderIconEnabledChange: (Boolean, (String) -> Unit) -> Unit,
-    onLauncherIconHiddenChange: (Boolean, (String) -> Unit) -> Unit,
 ) {
     var showRestartDialog by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
     fun showSnackbar(message: String) {
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = stringResource(R.string.app_name),
-                largeTitle = stringResource(R.string.home_title),
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection),
-            contentPadding = paddingValues,
-        ) {
-            item { SmallTitle(text = stringResource(R.string.section_module_status)) }
-            item { StatusCard(state = state) }
-            item { SmallTitle(text = stringResource(R.string.section_feature_settings)) }
-            item {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        contentPadding = contentPadding,
+    ) {
+        item { StatusOverview(state = state) }
+        item {
+            PreferenceGroup {
                 SettingsCard(
                     state = state,
                     onIconSourceModeChange = { onIconSourceModeChange(it, ::showSnackbar) },
@@ -135,54 +119,27 @@ fun HomeScreen(
                     },
                 )
             }
-            item { SmallTitle(text = stringResource(R.string.section_rules_data)) }
-            item {
+        }
+        item {
+            PreferenceGroup {
                 RulesCard(
                     state = state,
-                    onOpenRules = onOpenRules,
                     onSyncRules = { onSyncRules(::showSnackbar) },
                     onRestartClick = { showRestartDialog = true },
                 )
             }
-            item { SmallTitle(text = stringResource(R.string.section_app_settings)) }
-            item {
-                AppSettingsCard(
-                    launcherIconHidden = state.launcherIconHidden,
-                    onLauncherIconHiddenChange = {
-                        onLauncherIconHiddenChange(it, ::showSnackbar)
-                    },
-                )
-            }
-            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
-
-        RestartDialog(
-            show = showRestartDialog,
-            onDismiss = { showRestartDialog = false },
-            onConfirm = {
-                showRestartDialog = false
-                onRestartSystemUi(::showSnackbar)
-            },
-        )
+        item { Spacer(modifier = Modifier.height(24.dp)) }
     }
-}
 
-@Composable
-private fun AppSettingsCard(
-    launcherIconHidden: Boolean,
-    onLauncherIconHiddenChange: (Boolean) -> Unit,
-) {
-    Card(
-        modifier = Modifier
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp),
-    ) {
-        ToggleComponent(
-            title = stringResource(R.string.label_hide_launcher_icon),
-            checked = launcherIconHidden,
-            onCheckedChange = onLauncherIconHiddenChange,
-        )
-    }
+    RestartDialog(
+        show = showRestartDialog,
+        onDismiss = { showRestartDialog = false },
+        onConfirm = {
+            showRestartDialog = false
+            onRestartSystemUi(::showSnackbar)
+        },
+    )
 }
 
 @Composable
@@ -196,38 +153,32 @@ private fun SettingsCard(
 ) {
     val canEditConfig = state.canEditConfig
     val ruleLibraryMode = state.config.iconSourceMode == RuleStore.IconSourceMode.RuleLibrary
-    Card(
-        modifier = Modifier
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp),
-    ) {
-        IconSourceRow(state = state, onIconSourceModeChange = onIconSourceModeChange)
+    IconSourceRow(state = state, onIconSourceModeChange = onIconSourceModeChange)
+    ToggleComponent(
+        title = stringResource(R.string.label_icon_enhancement_enabled),
+        checked = state.config.rulesEnabled,
+        enabled = canEditConfig,
+        onCheckedChange = onRulesEnabledChange,
+    )
+    ToggleComponent(
+        title = stringResource(R.string.label_panel_icon_replacement_enabled),
+        checked = state.config.panelIconReplacementEnabled,
+        enabled = canEditConfig,
+        onCheckedChange = onPanelIconReplacementEnabledChange,
+    )
+    if (ruleLibraryMode) {
         ToggleComponent(
-            title = stringResource(R.string.label_icon_enhancement_enabled),
-            checked = state.config.rulesEnabled,
-            enabled = canEditConfig,
-            onCheckedChange = onRulesEnabledChange,
+            title = stringResource(R.string.label_oplus_push_special_handling_enabled),
+            checked = state.config.oplusPushSpecialHandlingEnabled,
+            enabled = canEditConfig && state.config.rulesEnabled,
+            onCheckedChange = onOplusPushSpecialHandlingEnabledChange,
         )
         ToggleComponent(
-            title = stringResource(R.string.label_panel_icon_replacement_enabled),
-            checked = state.config.panelIconReplacementEnabled,
-            enabled = canEditConfig,
-            onCheckedChange = onPanelIconReplacementEnabledChange,
+            title = stringResource(R.string.label_placeholder_icon_enabled),
+            checked = state.config.placeholderIconEnabled,
+            enabled = canEditConfig && state.config.rulesEnabled,
+            onCheckedChange = onPlaceholderIconEnabledChange,
         )
-        if (ruleLibraryMode) {
-            ToggleComponent(
-                title = stringResource(R.string.label_oplus_push_special_handling_enabled),
-                checked = state.config.oplusPushSpecialHandlingEnabled,
-                enabled = canEditConfig && state.config.rulesEnabled,
-                onCheckedChange = onOplusPushSpecialHandlingEnabledChange,
-            )
-            ToggleComponent(
-                title = stringResource(R.string.label_placeholder_icon_enabled),
-                checked = state.config.placeholderIconEnabled,
-                enabled = canEditConfig && state.config.rulesEnabled,
-                onCheckedChange = onPlaceholderIconEnabledChange,
-            )
-        }
     }
 }
 
@@ -261,7 +212,7 @@ private fun IconSourceRow(
 }
 
 @Composable
-private fun StatusCard(state: HomeScreenState) {
+private fun StatusOverview(state: HomeScreenState) {
     val context = LocalContext.current
     val moduleVersionText = stringResource(
         R.string.status_hero_module_version,
@@ -269,116 +220,224 @@ private fun StatusCard(state: HomeScreenState) {
         BuildConfig.VERSION_CODE,
     )
     val softwareVersionText = remember { softwareVersionText() }
-    val heroSpec = statusHeroSpec(context, state, moduleVersionText, softwareVersionText)
+    val heroSpec = statusHeroSpec(context, state, moduleVersionText)
 
-    StatusHeroCard(spec = heroSpec)
+    Column(
+        modifier = Modifier.padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StatusHeroCard(
+                spec = heroSpec,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+            ) {
+                MetricCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    title = stringResource(R.string.home_card_rules),
+                    value = state.rulesCount.toString(),
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                MetricCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    title = stringResource(R.string.home_card_enabled),
+                    value = state.enabledRulesCount.toString(),
+                )
+            }
+        }
+        SystemInfoCard(
+            state = state,
+            moduleVersionText = moduleVersionText,
+            softwareVersionText = softwareVersionText,
+        )
+    }
 }
 
 @Composable
-private fun StatusHeroCard(spec: StatusHeroSpec) {
+private fun MetricCard(
+    modifier: Modifier,
+    title: String,
+    value: String,
+) {
     Card(
-        modifier = Modifier
-            .padding(horizontal = StatusHeroDefaults.OutsidePadding)
-            .padding(bottom = StatusHeroDefaults.OutsidePadding)
-            .fillMaxWidth(),
+        modifier = modifier,
+        insideMargin = PaddingValues(16.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = title,
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = value,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MiuixTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusHeroCard(
+    spec: StatusHeroSpec,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
         insideMargin = PaddingValues(),
         colors = CardDefaults.defaultColors(
             color = spec.containerColor,
             contentColor = spec.accentColor,
         ),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = StatusHeroDefaults.MinHeight)
-                .squircleClip(CardDefaults.CornerRadius),
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset(38.dp, 45.dp),
+                contentAlignment = Alignment.BottomEnd,
+            ) {
+                Icon(
+                    imageVector = spec.icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(170.dp),
+                    tint = spec.accentColor,
+                )
+            }
             Column(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .fillMaxWidth()
-                    .padding(StatusHeroDefaults.ContentPadding)
-                    .padding(end = StatusHeroDefaults.IconReserve),
+                    .fillMaxSize()
+                    .padding(16.dp),
             ) {
                 Text(
+                    modifier = Modifier.fillMaxWidth(),
                     text = spec.status,
-                    style = MiuixTheme.textStyles.title1,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = MiuixTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
+                    modifier = Modifier.fillMaxWidth(),
                     text = spec.versionLine,
-                    modifier = Modifier.padding(top = StatusHeroDefaults.TitleGap),
-                    style = MiuixTheme.textStyles.title4,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
                     color = MiuixTheme.colorScheme.onSurface,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(
-                text = spec.footnote,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(StatusHeroDefaults.ContentPadding)
-                    .padding(end = StatusHeroDefaults.IconReserve),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        }
+    }
+}
+
+@Composable
+private fun SystemInfoCard(
+    state: HomeScreenState,
+    moduleVersionText: String,
+    softwareVersionText: String,
+) {
+    val deviceText = remember {
+        listOf(Build.BRAND, Build.MODEL)
+            .map { it.orEmpty().trim() }
+            .filter(String::isNotEmpty)
+            .joinToString(" ")
+            .ifBlank { Build.DEVICE.orEmpty() }
+    }
+    val framework = state.frameworkConnection
+    val frameworkText = if (framework == null) {
+        stringResource(R.string.home_info_framework_disconnected)
+    } else {
+        "${framework.name} ${framework.version} · API ${framework.apiVersion}"
+    }
+    val scopesText = when {
+        framework == null -> stringResource(R.string.status_hero_inactive_detail)
+        state.missingScopes.isNotEmpty() -> stringResource(
+            R.string.status_hero_missing_scopes_detail,
+            state.missingScopes.joinToString(),
+        )
+        else -> stringResource(R.string.home_info_scopes_ready)
+    }
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            InfoText(
+                title = stringResource(R.string.home_info_system_version),
+                content = softwareVersionText.ifBlank { deviceText },
             )
-            StatusHeroGlyph(
-                spec = spec,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(
-                        x = StatusHeroDefaults.IconOffset,
-                        y = StatusHeroDefaults.IconOffset,
-                    )
-                    .graphicsLayer { alpha = StatusHeroDefaults.IconAlpha },
+            InfoText(
+                title = stringResource(R.string.home_info_device),
+                content = deviceText,
+            )
+            InfoText(
+                title = stringResource(R.string.home_info_module_version),
+                content = moduleVersionText,
+            )
+            InfoText(
+                title = stringResource(R.string.home_info_framework),
+                content = frameworkText,
+            )
+            InfoText(
+                title = stringResource(R.string.home_info_scopes),
+                content = scopesText,
+                bottomPadding = 0.dp,
             )
         }
     }
 }
 
 @Composable
-private fun StatusHeroGlyph(
-    spec: StatusHeroSpec,
-    modifier: Modifier = Modifier,
+private fun InfoText(
+    title: String,
+    content: String,
+    bottomPadding: Dp = 24.dp,
 ) {
-    if (spec.showCheckRing) {
-        Box(
-            modifier = modifier
-                .size(StatusHeroDefaults.IconSize)
-                .border(
-                    width = StatusHeroDefaults.IconStroke,
-                    color = spec.accentColor,
-                    shape = CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = spec.icon,
-                contentDescription = null,
-                modifier = Modifier.size(StatusHeroDefaults.CheckIconSize),
-                tint = spec.accentColor,
-            )
-        }
-    } else {
-        Icon(
-            imageVector = spec.icon,
-            contentDescription = null,
-            modifier = modifier.size(StatusHeroDefaults.IconSize),
-            tint = spec.accentColor,
-        )
-    }
+    Text(
+        text = title,
+        fontSize = MiuixTheme.textStyles.headline1.fontSize,
+        fontWeight = FontWeight.Medium,
+        color = MiuixTheme.colorScheme.onSurface,
+    )
+    Text(
+        text = content,
+        fontSize = MiuixTheme.textStyles.body2.fontSize,
+        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        modifier = Modifier.padding(top = 2.dp, bottom = bottomPadding),
+    )
 }
 
 @Composable
 private fun RulesCard(
     state: HomeScreenState,
-    onOpenRules: () -> Unit,
     onSyncRules: () -> Unit,
     onRestartClick: () -> Unit,
 ) {
@@ -391,56 +450,43 @@ private fun RulesCard(
         }
     }
 
-    Card(
-        modifier = Modifier
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp),
-    ) {
-        BasicComponent(
-            title = stringResource(R.string.label_local_rules_short),
-            summary = if (lastSyncText == null) {
-                stringResource(R.string.label_rules_snapshot_never, state.rulesCount)
-            } else {
-                stringResource(R.string.label_rules_snapshot_synced, state.rulesCount, lastSyncText)
-            },
-        )
-        ArrowPreference(
-            title = stringResource(R.string.label_manage_rules),
-            onClick = onOpenRules,
-        )
-        BasicComponent(
-            title = when (state.syncStage) {
-                RuleSyncStage.Idle -> stringResource(R.string.button_sync_rules)
-                RuleSyncStage.SyncingRules -> stringResource(R.string.button_syncing_rules)
-                RuleSyncStage.MirroringRemote -> stringResource(R.string.button_mirroring_rules)
-            },
-            endActions = if (!state.isSyncing) {
-                {
-                    Icon(
-                        imageVector = MiuixIcons.Download,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
-                    )
-                }
-            } else null,
-            onClick = onSyncRules,
-            enabled = !state.isSyncing && state.canEditConfig,
-        )
-        BasicComponent(
-            title = stringResource(R.string.label_restart_systemui),
-            endActions = {
+    BasicComponent(
+        title = when (state.syncStage) {
+            RuleSyncStage.Idle -> stringResource(R.string.button_sync_rules)
+            RuleSyncStage.SyncingRules -> stringResource(R.string.button_syncing_rules)
+            RuleSyncStage.MirroringRemote -> stringResource(R.string.button_mirroring_rules)
+        },
+        summary = if (lastSyncText == null) {
+            stringResource(R.string.label_rules_never_synced)
+        } else {
+            stringResource(R.string.label_rules_last_sync, lastSyncText)
+        },
+        endActions = if (!state.isSyncing) {
+            {
                 Icon(
-                    imageVector = MiuixIcons.Refresh,
+                    imageVector = MiuixIcons.Download,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
                 )
-            },
-            onClick = onRestartClick,
-            enabled = state.canEditConfig,
-        )
-    }
+            }
+        } else null,
+        onClick = onSyncRules,
+        enabled = !state.isSyncing && state.canEditConfig,
+    )
+    BasicComponent(
+        title = stringResource(R.string.label_restart_systemui),
+        endActions = {
+            Icon(
+                imageVector = MiuixIcons.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
+            )
+        },
+        onClick = onRestartClick,
+        enabled = state.canEditConfig,
+    )
 }
 
 @Composable
@@ -492,22 +538,17 @@ private fun statusHeroSpec(
     context: android.content.Context,
     state: HomeScreenState,
     moduleVersionText: String,
-    softwareVersionText: String,
 ): StatusHeroSpec {
     val frameworkConnection = state.frameworkConnection
-    val successColor = Color(0xFF34C759)
-    val warningColor = Color(0xFFFF9500)
+    val dark = isSystemInDarkTheme()
     return when {
         frameworkConnection == null -> {
-            val accentColor = MiuixTheme.colorScheme.error
             StatusHeroSpec(
                 status = context.getString(R.string.status_hero_inactive_title),
                 versionLine = moduleVersionText,
-                footnote = context.getString(R.string.status_hero_inactive_detail),
-                accentColor = accentColor,
-                containerColor = accentColor.copy(alpha = StatusHeroDefaults.ContainerAlpha),
-                icon = MiuixIcons.Info,
-                showCheckRing = false,
+                accentColor = Color(0xFFFF453A),
+                containerColor = if (dark) Color(0xFF3A1A1A) else Color(0xFFFFEBEA),
+                icon = StatusIcons.ErrorOutline,
             )
         }
         state.missingScopes.isNotEmpty() -> {
@@ -518,14 +559,9 @@ private fun statusHeroSpec(
                     moduleVersionText = moduleVersionText,
                     apiVersion = frameworkConnection.apiVersion,
                 ),
-                footnote = context.getString(
-                    R.string.status_hero_missing_scopes_detail,
-                    state.missingScopes.joinToString(),
-                ),
-                accentColor = warningColor,
-                containerColor = warningColor.copy(alpha = StatusHeroDefaults.ContainerAlpha),
-                icon = MiuixIcons.Info,
-                showCheckRing = false,
+                accentColor = Color(0xFFFF9500),
+                containerColor = if (dark) Color(0xFF3A2A12) else Color(0xFFFFF4E0),
+                icon = StatusIcons.ErrorOutline,
             )
         }
         else -> {
@@ -536,11 +572,9 @@ private fun statusHeroSpec(
                     moduleVersionText = moduleVersionText,
                     apiVersion = frameworkConnection.apiVersion,
                 ),
-                footnote = softwareVersionText,
-                accentColor = successColor,
-                containerColor = successColor.copy(alpha = StatusHeroDefaults.ContainerAlpha),
-                icon = MiuixIcons.Basic.Check,
-                showCheckRing = true,
+                accentColor = Color(0xFF36D167),
+                containerColor = if (dark) Color(0xFF1A3825) else Color(0xFFDFFAE4),
+                icon = StatusIcons.CheckCircleOutline,
             )
         }
     }
@@ -559,11 +593,9 @@ private fun moduleApiText(
 private data class StatusHeroSpec(
     val status: String,
     val versionLine: String,
-    val footnote: String,
     val accentColor: Color,
     val containerColor: Color,
     val icon: ImageVector,
-    val showCheckRing: Boolean,
 )
 
 private fun softwareVersionText(): String = cachedSoftwareVersion
@@ -590,18 +622,23 @@ private fun readSoftwareVersion(): String = try {
     Build.DISPLAY.orEmpty()
 }
 
-private object StatusHeroDefaults {
-    val OutsidePadding = 12.dp
-    val ContentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp)
-    val MinHeight = 144.dp
-    val IconReserve = 116.dp
-    val IconSize = 116.dp
-    val CheckIconSize = 84.dp
-    val IconOffset = 24.dp
-    val IconStroke = 4.dp
-    val TitleGap = 6.dp
-    const val ContainerAlpha = 0.16f
-    const val IconAlpha = 0.72f
+@Composable
+private fun HomeScreenPreview(state: HomeScreenState) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
+    HomeScreen(
+        state = state,
+        contentPadding = PaddingValues(),
+        scrollBehavior = scrollBehavior,
+        snackbarHostState = snackbarHostState,
+        onSyncRules = {},
+        onRestartSystemUi = {},
+        onRulesEnabledChange = { _, _ -> },
+        onIconSourceModeChange = { _, _ -> },
+        onPanelIconReplacementEnabledChange = { _, _ -> },
+        onOplusPushSpecialHandlingEnabledChange = { _, _ -> },
+        onPlaceholderIconEnabledChange = { _, _ -> },
+    )
 }
 
 @Preview(
@@ -613,21 +650,13 @@ private object StatusHeroDefaults {
 @Composable
 private fun HomeScreenLightPreview() {
     ColorOSNotifyIconTheme(darkTheme = false) {
-        HomeScreen(
+        HomeScreenPreview(
             state = HomeScreenState(
                 rulesCount = 128,
+                enabledRulesCount = 96,
                 rulesUpdatedAt = 1742861100000L,
                 syncStage = RuleSyncStage.Idle,
             ),
-            onSyncRules = {},
-            onRestartSystemUi = {},
-            onOpenRules = {},
-            onRulesEnabledChange = { _, _ -> },
-            onIconSourceModeChange = { _, _ -> },
-            onPanelIconReplacementEnabledChange = { _, _ -> },
-            onOplusPushSpecialHandlingEnabledChange = { _, _ -> },
-            onPlaceholderIconEnabledChange = { _, _ -> },
-            onLauncherIconHiddenChange = { _, _ -> },
         )
     }
 }
@@ -642,21 +671,13 @@ private fun HomeScreenLightPreview() {
 @Composable
 private fun HomeScreenDarkPreview() {
     ColorOSNotifyIconTheme(darkTheme = true) {
-        HomeScreen(
+        HomeScreenPreview(
             state = HomeScreenState(
                 rulesCount = 256,
+                enabledRulesCount = 180,
                 rulesUpdatedAt = 1742861400000L,
                 syncStage = RuleSyncStage.MirroringRemote,
             ),
-            onSyncRules = {},
-            onRestartSystemUi = {},
-            onOpenRules = {},
-            onRulesEnabledChange = { _, _ -> },
-            onIconSourceModeChange = { _, _ -> },
-            onPanelIconReplacementEnabledChange = { _, _ -> },
-            onOplusPushSpecialHandlingEnabledChange = { _, _ -> },
-            onPlaceholderIconEnabledChange = { _, _ -> },
-            onLauncherIconHiddenChange = { _, _ -> },
         )
     }
 }
@@ -670,21 +691,13 @@ private fun HomeScreenDarkPreview() {
 @Composable
 private fun HomeScreenEmptyPreview() {
     ColorOSNotifyIconTheme(darkTheme = false) {
-        HomeScreen(
+        HomeScreenPreview(
             state = HomeScreenState(
                 rulesCount = 0,
+                enabledRulesCount = 0,
                 rulesUpdatedAt = 0L,
                 syncStage = RuleSyncStage.Idle,
             ),
-            onSyncRules = {},
-            onRestartSystemUi = {},
-            onOpenRules = {},
-            onRulesEnabledChange = { _, _ -> },
-            onIconSourceModeChange = { _, _ -> },
-            onPanelIconReplacementEnabledChange = { _, _ -> },
-            onOplusPushSpecialHandlingEnabledChange = { _, _ -> },
-            onPlaceholderIconEnabledChange = { _, _ -> },
-            onLauncherIconHiddenChange = { _, _ -> },
         )
     }
 }

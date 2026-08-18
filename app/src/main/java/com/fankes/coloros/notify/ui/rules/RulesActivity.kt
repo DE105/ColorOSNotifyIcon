@@ -23,6 +23,7 @@ import com.fankes.coloros.notify.rules.IconRule
 import com.fankes.coloros.notify.rules.RuleStore
 import com.fankes.coloros.notify.ui.theme.ColorOSNotifyIconTheme
 import io.github.libxposed.service.XposedService
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 
@@ -49,13 +50,15 @@ class RulesActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ColorOSNotifyIconTheme {
-                RuleListScreen(
+                StandaloneRuleListScreen(
                     state = uiState,
                     onBack = ::finish,
                     onQueryChange = ::updateQuery,
                     onRuleEnabledChange = ::setRuleEnabled,
                     onRuleEnabledAllChange = ::setRuleEnabledAll,
                     onInstalledRulesEnabledAllChange = ::setInstalledRulesEnabledAll,
+                    onRuleIconSourceChange = ::setRuleIconSource,
+                    onBindUnadaptedApp = ::bindUnadaptedApp,
                 )
             }
         }
@@ -88,12 +91,16 @@ class RulesActivity : ComponentActivity() {
                 val installedPackages = readInstalledPackages(
                     rulePackageNames = rules.mapTo(linkedSetOf()) { it.packageName },
                 )
+                val unadaptedApps = readUnadaptedInstalledApps(
+                    rulePackageNames = rules.mapTo(linkedSetOf()) { it.packageName },
+                )
                 MainThreadCallbacks.dispatch("rule_list_load") {
                     if (request == loadRequest.get() && !isDestroyed) {
                         uiState = uiState.copy(
                             rules = rules,
                             installedPackageNames = installedPackages.names,
                             installedPackagesKnown = installedPackages.available,
+                            unadaptedInstalledApps = unadaptedApps,
                             config = RuleStore.moduleConfig,
                             isLoading = false,
                             loadFailed = false,
@@ -160,6 +167,33 @@ class RulesActivity : ComponentActivity() {
         InstalledPackageSnapshot(names = emptySet(), available = false)
     }
 
+    private fun readUnadaptedInstalledApps(rulePackageNames: Set<String>): List<InstalledAppChoice> = try {
+        packageManager
+            .getInstalledApplications(PackageManager.MATCH_DISABLED_COMPONENTS)
+            .asSequence()
+            .filter { it.packageName !in rulePackageNames }
+            .map { application ->
+                val label = try {
+                    packageManager.getApplicationLabel(application).toString()
+                        .ifBlank { application.packageName }
+                } catch (_: Exception) {
+                    application.packageName
+                }
+                InstalledAppChoice(packageName = application.packageName, label = label)
+            }
+            .sortedBy { it.label.lowercase(Locale.getDefault()) }
+            .toList()
+    } catch (exception: Exception) {
+        AppDiagnostics.logger.report(
+            level = DiagnosticLevel.Warning,
+            event = DiagnosticEvent.InstalledPackagesReadFailed,
+            message = "Unable to list unadapted installed applications",
+            cause = exception,
+            occurrence = OccurrencePolicy.Once("rule-list-unadapted"),
+        )
+        emptyList()
+    }
+
     private fun updateQuery(query: String) {
         uiState = uiState.copy(query = query)
     }
@@ -223,6 +257,44 @@ class RulesActivity : ComponentActivity() {
             },
             config = RuleStore.moduleConfig,
         )
+    }
+
+    private fun setRuleIconSource(
+        rule: IconRule,
+        sourcePackage: String?,
+        onShowMessage: (String) -> Unit,
+    ) {
+        val service = requireFrameworkService(onShowMessage) ?: return
+        val updated = RemoteConfigCoordinator.update(
+            service = service,
+            mutation = { RuleStore.setRuleIconSource(rule.packageName, sourcePackage) },
+        ) { result ->
+            showPublishFailure(result, onShowMessage)
+        }
+        if (!updated) return
+        loadRules()
+    }
+
+    private fun bindUnadaptedApp(
+        app: InstalledAppChoice,
+        sourcePackage: String,
+        onShowMessage: (String) -> Unit,
+    ) {
+        val service = requireFrameworkService(onShowMessage) ?: return
+        val updated = RemoteConfigCoordinator.update(
+            service = service,
+            mutation = {
+                RuleStore.setRuleIconSource(
+                    targetPackage = app.packageName,
+                    sourcePackage = sourcePackage,
+                    customName = app.label,
+                )
+            },
+        ) { result ->
+            showPublishFailure(result, onShowMessage)
+        }
+        if (!updated) return
+        loadRules()
     }
 
     private fun showPublishFailure(

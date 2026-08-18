@@ -77,11 +77,13 @@ dependencies {
     implementation(composeBom)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.compose.foundation)
     implementation(libs.activity.compose)
     debugImplementation(libs.compose.ui.tooling)
 
     implementation(libs.miuix.ui.android)
     implementation(libs.miuix.icons.android)
     implementation(libs.miuix.preference.android)
+    implementation(libs.miuix.blur.android)
     testImplementation(libs.junit)
 }

@@ -78,6 +78,8 @@ object RuleStore {
     private const val LOCAL_RULE_DIRECTORY = "rules"
     private const val KEY_RULE_ENABLED_PREFIX = "rule.enabled."
     private const val KEY_RULE_ENABLED_ALL_PREFIX = "rule.enabled_all."
+    private const val KEY_RULE_ICON_SOURCE_PREFIX = "rule.icon_source."
+    private const val KEY_RULE_CUSTOM_NAME_PREFIX = "rule.custom_name."
     private val OBSOLETE_KEYS = arrayOf(
         "md3_style_enabled",
         "icon_corner_dp",
@@ -300,6 +302,45 @@ object RuleStore {
 
     fun setRuleEnabledAll(packageName: String, enabledAll: Boolean) = editConfig {
         putBoolean(ruleEnabledAllKey(packageName), enabledAll)
+    }
+
+    /**
+     * Binds [targetPackage] to a catalog icon from [sourcePackage].
+     * Passing a blank or identical source clears the binding. Clearing a package that is not
+     * in the catalog also drops its enablement overrides so the synthetic entry disappears.
+     */
+    fun setRuleIconSource(
+        targetPackage: String,
+        sourcePackage: String?,
+        customName: String? = null,
+    ) {
+        val target = targetPackage.trim()
+        require(RuleCatalogParser.isValidPackageName(target)) { "packageName is invalid: $target" }
+        val source = sourcePackage?.trim()?.takeIf(String::isNotEmpty)
+        if (source != null) {
+            require(RuleCatalogParser.isValidPackageName(source)) {
+                "source packageName is invalid: $source"
+            }
+        }
+        val name = customName
+            ?.trim()
+            ?.take(RuleCatalogParser.MAX_DISPLAY_FIELD_CHARACTERS)
+            ?.takeIf(String::isNotEmpty)
+        editConfig {
+            val isClear = source == null || source == target
+            if (isClear) {
+                remove(ruleIconSourceKey(target))
+                if (cachedCatalog?.byPackage?.containsKey(target) == false) {
+                    remove(ruleCustomNameKey(target))
+                    remove(ruleEnabledKey(target))
+                    remove(ruleEnabledAllKey(target))
+                }
+            } else {
+                putString(ruleIconSourceKey(target), source)
+                putBoolean(ruleEnabledKey(target), true)
+                if (name != null) putString(ruleCustomNameKey(target), name)
+            }
+        }
     }
 
     fun setRulesEnabledAll(packageNames: Collection<String>, enabledAll: Boolean) {
@@ -618,6 +659,8 @@ object RuleStore {
     private fun overridesFrom(values: Map<String, *>): RuleOverrides {
         val enabled = HashMap<String, Boolean>()
         val enabledAll = HashMap<String, Boolean>()
+        val iconSource = HashMap<String, String>()
+        val customNames = HashMap<String, String>()
         values.forEach { (key, value) ->
             when {
                 key.startsWith(KEY_RULE_ENABLED_PREFIX) && value is Boolean ->
@@ -625,22 +668,38 @@ object RuleStore {
 
                 key.startsWith(KEY_RULE_ENABLED_ALL_PREFIX) && value is Boolean ->
                     enabledAll[key.removePrefix(KEY_RULE_ENABLED_ALL_PREFIX)] = value
+
+                key.startsWith(KEY_RULE_ICON_SOURCE_PREFIX) && value is String -> {
+                    val target = key.removePrefix(KEY_RULE_ICON_SOURCE_PREFIX)
+                    val source = value.trim()
+                    if (target.isNotEmpty() && source.isNotEmpty()) iconSource[target] = source
+                }
+
+                key.startsWith(KEY_RULE_CUSTOM_NAME_PREFIX) && value is String -> {
+                    val target = key.removePrefix(KEY_RULE_CUSTOM_NAME_PREFIX)
+                    val name = value.trim()
+                    if (target.isNotEmpty() && name.isNotEmpty()) customNames[target] = name
+                }
             }
         }
-        return RuleOverrides(enabled, enabledAll)
+        return RuleOverrides(enabled, enabledAll, iconSource, customNames)
     }
 
-    private fun isMirroredConfigKey(key: String) =
+    internal fun isMirroredConfigKey(key: String) =
         key == KEY_RULES_ENABLED ||
             key == KEY_ICON_SOURCE_MODE ||
             key == KEY_PANEL_ICON_REPLACEMENT_ENABLED ||
             key == KEY_OPLUS_PUSH_SPECIAL_HANDLING_ENABLED ||
             key == KEY_PLACEHOLDER_ICON_ENABLED ||
             key.startsWith(KEY_RULE_ENABLED_PREFIX) ||
-            key.startsWith(KEY_RULE_ENABLED_ALL_PREFIX)
+            key.startsWith(KEY_RULE_ENABLED_ALL_PREFIX) ||
+            key.startsWith(KEY_RULE_ICON_SOURCE_PREFIX) ||
+            key.startsWith(KEY_RULE_CUSTOM_NAME_PREFIX)
 
     private fun ruleEnabledKey(packageName: String) = KEY_RULE_ENABLED_PREFIX + packageName
     private fun ruleEnabledAllKey(packageName: String) = KEY_RULE_ENABLED_ALL_PREFIX + packageName
+    private fun ruleIconSourceKey(packageName: String) = KEY_RULE_ICON_SOURCE_PREFIX + packageName
+    private fun ruleCustomNameKey(packageName: String) = KEY_RULE_CUSTOM_NAME_PREFIX + packageName
 
     private fun isSha256(value: String): Boolean =
         value.length == 64 && value.all { it in '0'..'9' || it in 'a'..'f' }

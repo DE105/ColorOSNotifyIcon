@@ -2,6 +2,7 @@ package com.fankes.coloros.notify.rules
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MirrorValuesTest {
@@ -31,5 +32,14 @@ class MirrorValuesTest {
         assertEquals(false, values[RuleStore.KEY_RULES_ENABLED])
         assertEquals("rules-${"b".repeat(64)}.json", values[RuleStore.KEY_PREVIOUS_RULES_FILE_NAME])
         assertFalse(values.containsKey(RuleStore.KEY_CONFIG_UPDATED_AT))
+    }
+
+    @Test
+    fun mirroredConfigKeysIncludeManualIconOverrides() {
+        assertTrue(RuleStore.isMirroredConfigKey("rule.icon_source.com.example.app"))
+        assertTrue(RuleStore.isMirroredConfigKey("rule.custom_name.com.example.app"))
+        assertTrue(RuleStore.isMirroredConfigKey("rule.enabled.com.example.app"))
+        assertFalse(RuleStore.isMirroredConfigKey("rule.icon_source"))
+        assertFalse(RuleStore.isMirroredConfigKey("unrelated.key"))
     }
 }

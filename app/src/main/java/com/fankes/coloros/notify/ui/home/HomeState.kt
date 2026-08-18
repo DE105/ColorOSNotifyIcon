@@ -19,6 +19,7 @@ data class FrameworkConnection(
 data class HomeScreenState(
     val frameworkConnection: FrameworkConnection? = null,
     val rulesCount: Int = 0,
+    val enabledRulesCount: Int = 0,
     val rulesUpdatedAt: Long = 0L,
     val config: RuleStore.ModuleConfig = RuleStore.ModuleConfig(),
     val launcherIconHidden: Boolean = false,

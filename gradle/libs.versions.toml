@@ -27,4 +27,6 @@ activity-compose = { group = "androidx.activity", name = "activity-compose", ver
 miuix-ui-android = { group = "top.yukonga.miuix.kmp", name = "miuix-ui-android", version.ref = "miuix" }
 miuix-icons-android = { group = "top.yukonga.miuix.kmp", name = "miuix-icons-android", version.ref = "miuix" }
 miuix-preference-android = { group = "top.yukonga.miuix.kmp", name = "miuix-preference-android", version.ref = "miuix" }
+miuix-blur-android = { group = "top.yukonga.miuix.kmp", name = "miuix-blur-android", version.ref = "miuix" }
+compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

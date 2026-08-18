@@ -4,23 +4,33 @@ import com.fankes.coloros.notify.rules.IconRule
 import com.fankes.coloros.notify.rules.RuleStore
 import java.util.Locale
 
+data class InstalledAppChoice(
+    val packageName: String,
+    val label: String,
+)
+
 data class RuleListState(
     val rules: List<IconRule> = emptyList(),
     val installedPackageNames: Set<String> = emptySet(),
     val installedPackagesKnown: Boolean = false,
+    val unadaptedInstalledApps: List<InstalledAppChoice> = emptyList(),
     val query: String = "",
     val config: RuleStore.ModuleConfig = RuleStore.ModuleConfig(),
     val canEditConfig: Boolean = false,
     val isLoading: Boolean = true,
     val loadFailed: Boolean = false,
 ) {
+    val libraryRules: List<IconRule>
+        get() = rules.filter(IconRule::isLibraryEntry)
     val filteredRules: List<IconRule>
         get() {
             val keyword = query.trim().lowercase(Locale.getDefault())
             if (keyword.isBlank()) return rules
             return rules.filter {
                 it.appName.lowercase(Locale.getDefault()).contains(keyword) ||
-                    it.packageName.lowercase(Locale.getDefault()).contains(keyword)
+                    it.packageName.lowercase(Locale.getDefault()).contains(keyword) ||
+                    it.sourcedFrom?.appName?.lowercase(Locale.getDefault())?.contains(keyword) == true ||
+                    it.iconSourcePackage?.lowercase(Locale.getDefault())?.contains(keyword) == true
             }
         }
 

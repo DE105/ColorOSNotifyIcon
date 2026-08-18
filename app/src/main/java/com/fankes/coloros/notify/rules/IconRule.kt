@@ -79,11 +79,17 @@ data class IconRule(
     val definition: RuleDefinition,
     val isEnabled: Boolean = definition.enabledByDefault,
     val isEnabledAll: Boolean = definition.enabledAllByDefault,
+    /** Requested donor package; null means the catalog match for [packageName]. */
+    val iconSourcePackage: String? = null,
+    /** Catalog definition that supplies the icon; looked up once, never through another override. */
+    val sourcedFrom: RuleDefinition? = null,
+    val isLibraryEntry: Boolean = true,
 ) {
     val appName: String get() = definition.appName
     val packageName: String get() = definition.packageName
-    val iconAsset: IconAsset get() = definition.icon
-    val iconBitmap: Bitmap get() = definition.icon.bitmap
-    val iconColor: Int get() = definition.iconColor
+    val iconAsset: IconAsset get() = sourcedFrom?.icon ?: definition.icon
+    val iconBitmap: Bitmap get() = iconAsset.bitmap
+    val iconColor: Int get() = sourcedFrom?.iconColor ?: definition.iconColor
     val contributorName: String get() = definition.contributorName
+    val hasManualIcon: Boolean get() = !iconSourcePackage.isNullOrBlank()
 }

@@ -91,11 +91,50 @@ class RuleListStateTest {
         assertEquals(false, mixed.installedRulesEnabledAll)
     }
 
+    @Test
+    fun `search also matches borrowed icon source`() {
+        val donor = RuleDefinition(
+            appName = "WeChat",
+            packageName = "com.tencent.mm",
+            icon = IconAsset.fromBytesForTest(byteArrayOf(1)),
+            iconColor = 0,
+            contributorName = "",
+            enabledByDefault = true,
+            enabledAllByDefault = false,
+        )
+        val state = RuleListState(
+            rules = listOf(
+                rule("com.example.clone", "Clone").copy(
+                    iconSourcePackage = donor.packageName,
+                    sourcedFrom = donor,
+                )
+            ),
+            query = "wechat",
+            isLoading = false,
+        )
+
+        assertEquals(listOf("com.example.clone"), state.filteredRules.map { it.packageName })
+    }
+
+    @Test
+    fun `library picker excludes synthetic mappings`() {
+        val state = RuleListState(
+            rules = listOf(
+                rule("com.library.app"),
+                rule("com.custom.app", library = false),
+            ),
+            isLoading = false,
+        )
+
+        assertEquals(listOf("com.library.app"), state.libraryRules.map { it.packageName })
+    }
+
     private fun rule(
         packageName: String,
         appName: String = packageName,
         enabled: Boolean = true,
         enabledAll: Boolean = false,
+        library: Boolean = true,
     ): IconRule = IconRule(
         definition = RuleDefinition(
             appName = appName,
@@ -108,5 +147,6 @@ class RuleListStateTest {
         ),
         isEnabled = enabled,
         isEnabledAll = enabledAll,
+        isLibraryEntry = library,
     )
 }
