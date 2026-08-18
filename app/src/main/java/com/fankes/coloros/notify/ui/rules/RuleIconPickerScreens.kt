@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.intl.Locale as ComposeLocale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,7 +63,6 @@ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import java.util.Locale
 
 @Composable
 internal fun IconPickerScreen(
@@ -79,14 +79,15 @@ internal fun IconPickerScreen(
     var query by remember { mutableStateOf("") }
     var searchExpanded by remember { mutableStateOf(false) }
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-    val keyword = query.trim().lowercase(Locale.getDefault())
-    val visibleRules = remember(libraryRules, keyword) {
+    val locale = ComposeLocale.current.platformLocale
+    val keyword = query.trim().lowercase(locale)
+    val visibleRules = remember(libraryRules, keyword, locale) {
         if (keyword.isBlank()) {
             libraryRules
         } else {
             libraryRules.filter { rule ->
-                rule.definition.appName.lowercase(Locale.getDefault()).contains(keyword) ||
-                    rule.packageName.lowercase(Locale.getDefault()).contains(keyword)
+                rule.definition.appName.lowercase(locale).contains(keyword) ||
+                    rule.packageName.lowercase(locale).contains(keyword)
             }
         }
     }
@@ -197,14 +198,15 @@ internal fun InstalledAppPickerScreen(
     var query by remember { mutableStateOf("") }
     var searchExpanded by remember { mutableStateOf(false) }
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-    val keyword = query.trim().lowercase(Locale.getDefault())
-    val visibleApps = remember(apps, keyword) {
+    val locale = ComposeLocale.current.platformLocale
+    val keyword = query.trim().lowercase(locale)
+    val visibleApps = remember(apps, keyword, locale) {
         if (keyword.isBlank()) {
             apps
         } else {
             apps.filter { app ->
-                app.label.lowercase(Locale.getDefault()).contains(keyword) ||
-                    app.packageName.lowercase(Locale.getDefault()).contains(keyword)
+                app.label.lowercase(locale).contains(keyword) ||
+                    app.packageName.lowercase(locale).contains(keyword)
             }
         }
     }
