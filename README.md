@@ -112,7 +112,7 @@ Fork 自 [fankes/ColorOSNotifyIcon](https://github.com/fankes/ColorOSNotifyIcon)
 - 功能收敛到通知图标增强，去除其余杂项功能
 - 支持通知图标跟随桌面主题或自定义图标
 - 补齐 ColorOS 经典时钟息屏通知图标（`LockScreenNotificationIconData` → AodPlugin，以及旧版 `NotificationLayout`）
-- 补齐 ColorOS 16 锁屏岛底部通知胶囊图标（`CapsuleNotificationDataController`），白色着色仅作用于锁屏岛，不影响下拉通知与锁屏堆叠聚合
+- 补齐 ColorOS 16 锁屏岛底部通知胶囊图标（`CapsuleNotificationDataController`）。规则图标在锁屏岛染白轮廓，桌面主题保持彩色，避免多条聚合被白色遮罩盖成色块；白色着色不作用于下拉通知与锁屏堆叠
 - 规则管理支持为单个应用手动指定规则库图标，优先于包名匹配
 - 不做后台自动同步
 
