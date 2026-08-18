@@ -46,7 +46,9 @@ import com.fankes.coloros.notify.diagnostics.DiagnosticEvent
 import com.fankes.coloros.notify.diagnostics.DiagnosticLevel
 import com.fankes.coloros.notify.diagnostics.OccurrencePolicy
 import com.fankes.coloros.notify.rules.RuleStore
+import com.fankes.coloros.notify.ui.component.MiuixBlurredTopBar
 import com.fankes.coloros.notify.ui.component.PreferenceGroup
+import com.fankes.coloros.notify.ui.component.rememberMiuixPageBackdrop
 import com.fankes.coloros.notify.ui.theme.ColorOSNotifyIconTheme
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -56,11 +58,12 @@ import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
-import top.yukonga.miuix.kmp.basic.ScrollBehavior
+import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Download
 import top.yukonga.miuix.kmp.icon.extended.Refresh
@@ -68,6 +71,8 @@ import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -77,8 +82,7 @@ private const val SOFTWARE_VERSION_PROPERTY = "ro.build.display.id.show"
 @Composable
 fun HomeScreen(
     state: HomeScreenState,
-    contentPadding: PaddingValues,
-    scrollBehavior: ScrollBehavior,
+    bottomPadding: Dp,
     snackbarHostState: SnackbarHostState,
     onSyncRules: ((String) -> Unit) -> Unit,
     onRestartSystemUi: ((String) -> Unit) -> Unit,
@@ -88,6 +92,9 @@ fun HomeScreen(
     onOplusPushSpecialHandlingEnabledChange: (Boolean, (String) -> Unit) -> Unit,
     onPlaceholderIconEnabledChange: (Boolean, (String) -> Unit) -> Unit,
 ) {
+    val scrollBehavior = MiuixScrollBehavior()
+    val backdrop = rememberMiuixPageBackdrop()
+    val surfaceColor = MiuixTheme.colorScheme.surface
     var showRestartDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -95,41 +102,60 @@ fun HomeScreen(
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
-        contentPadding = contentPadding,
-    ) {
-        item { StatusOverview(state = state) }
-        item {
-            PreferenceGroup {
-                SettingsCard(
-                    state = state,
-                    onIconSourceModeChange = { onIconSourceModeChange(it, ::showSnackbar) },
-                    onRulesEnabledChange = { onRulesEnabledChange(it, ::showSnackbar) },
-                    onPanelIconReplacementEnabledChange = {
-                        onPanelIconReplacementEnabledChange(it, ::showSnackbar)
-                    },
-                    onOplusPushSpecialHandlingEnabledChange = {
-                        onOplusPushSpecialHandlingEnabledChange(it, ::showSnackbar)
-                    },
-                    onPlaceholderIconEnabledChange = {
-                        onPlaceholderIconEnabledChange(it, ::showSnackbar)
-                    },
+    Scaffold(
+        topBar = {
+            MiuixBlurredTopBar(backdrop) {
+                TopAppBar(
+                    title = stringResource(R.string.app_name),
+                    largeTitle = stringResource(R.string.home_title),
+                    color = if (backdrop != null) Color.Transparent else surfaceColor,
+                    scrollBehavior = scrollBehavior,
                 )
             }
-        }
-        item {
-            PreferenceGroup {
-                RulesCard(
-                    state = state,
-                    onSyncRules = { onSyncRules(::showSnackbar) },
-                    onRestartClick = { showRestartDialog = true },
-                )
+        },
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
+                .scrollEndHaptic()
+                .overScrollVertical()
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding(),
+                bottom = maxOf(bottomPadding, innerPadding.calculateBottomPadding()),
+            ),
+        ) {
+            item { StatusOverview(state = state) }
+            item {
+                PreferenceGroup {
+                    SettingsCard(
+                        state = state,
+                        onIconSourceModeChange = { onIconSourceModeChange(it, ::showSnackbar) },
+                        onRulesEnabledChange = { onRulesEnabledChange(it, ::showSnackbar) },
+                        onPanelIconReplacementEnabledChange = {
+                            onPanelIconReplacementEnabledChange(it, ::showSnackbar)
+                        },
+                        onOplusPushSpecialHandlingEnabledChange = {
+                            onOplusPushSpecialHandlingEnabledChange(it, ::showSnackbar)
+                        },
+                        onPlaceholderIconEnabledChange = {
+                            onPlaceholderIconEnabledChange(it, ::showSnackbar)
+                        },
+                    )
+                }
             }
+            item {
+                PreferenceGroup {
+                    RulesCard(
+                        state = state,
+                        onSyncRules = { onSyncRules(::showSnackbar) },
+                        onRestartClick = { showRestartDialog = true },
+                    )
+                }
+            }
+            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
-        item { Spacer(modifier = Modifier.height(24.dp)) }
     }
 
     RestartDialog(
@@ -625,11 +651,9 @@ private fun readSoftwareVersion(): String = try {
 @Composable
 private fun HomeScreenPreview(state: HomeScreenState) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
     HomeScreen(
         state = state,
-        contentPadding = PaddingValues(),
-        scrollBehavior = scrollBehavior,
+        bottomPadding = 0.dp,
         snackbarHostState = snackbarHostState,
         onSyncRules = {},
         onRestartSystemUi = {},

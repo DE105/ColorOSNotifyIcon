@@ -7,7 +7,8 @@ okhttp = "5.4.0"
 androidx-core-ktx = "1.19.0"
 compose-bom = "2026.06.01"
 activity-compose = "1.13.0"
-miuix = "0.9.3"
+androidx-navigationevent = "1.1.2"
+miuix = "0.9.4-rc01"
 junit = "4.13.2"
 
 [plugins]
@@ -24,9 +25,11 @@ compose-ui = { group = "androidx.compose.ui", name = "ui" }
 compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
+androidx-navigationevent = { module = "androidx.navigationevent:navigationevent-compose", version.ref = "androidx-navigationevent" }
 miuix-ui-android = { group = "top.yukonga.miuix.kmp", name = "miuix-ui-android", version.ref = "miuix" }
 miuix-icons-android = { group = "top.yukonga.miuix.kmp", name = "miuix-icons-android", version.ref = "miuix" }
 miuix-preference-android = { group = "top.yukonga.miuix.kmp", name = "miuix-preference-android", version.ref = "miuix" }
 miuix-blur-android = { group = "top.yukonga.miuix.kmp", name = "miuix-blur-android", version.ref = "miuix" }
+miuix-nav-android = { group = "top.yukonga.miuix.kmp", name = "miuix-nav-android", version.ref = "miuix" }
 compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

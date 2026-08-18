@@ -46,12 +46,18 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     buildFeatures {
         buildConfig = true
         compose = true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
     }
 }
 
@@ -79,11 +85,13 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.foundation)
     implementation(libs.activity.compose)
+    implementation(libs.androidx.navigationevent)
     debugImplementation(libs.compose.ui.tooling)
 
     implementation(libs.miuix.ui.android)
     implementation(libs.miuix.icons.android)
     implementation(libs.miuix.preference.android)
     implementation(libs.miuix.blur.android)
+    implementation(libs.miuix.nav.android)
     testImplementation(libs.junit)
 }

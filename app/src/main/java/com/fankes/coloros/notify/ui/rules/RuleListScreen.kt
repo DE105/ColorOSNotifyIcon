@@ -1,7 +1,6 @@
 package com.fankes.coloros.notify.ui.rules
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,16 +19,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.fankes.coloros.notify.R
 import com.fankes.coloros.notify.rules.IconRule
 import com.fankes.coloros.notify.rules.RuleStore
+import com.fankes.coloros.notify.ui.component.MiuixBlurredTopBar
+import com.fankes.coloros.notify.ui.component.rememberMiuixPageBackdrop
 import com.fankes.coloros.notify.ui.theme.ColorOSNotifyIconTheme
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -47,18 +48,111 @@ import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
-import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
+import top.yukonga.miuix.kmp.nav.core.NavDisplay
+import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
+import top.yukonga.miuix.kmp.nav.core.NavKey
+import top.yukonga.miuix.kmp.nav.core.navBackStackOf
+import top.yukonga.miuix.kmp.nav.core.rememberNavSystemCornerRadius
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
-private sealed class RuleListOverlay {
-    data object None : RuleListOverlay()
-    data class IconPicker(val rule: IconRule) : RuleListOverlay()
-    data object UnadaptedAppPicker : RuleListOverlay()
-    data class UnadaptedIconPicker(val app: InstalledAppChoice) : RuleListOverlay()
+private sealed interface RuleListRoute : NavKey {
+    data object List : RuleListRoute
+    data class IconPicker(val rule: IconRule) : RuleListRoute
+    data object UnadaptedAppPicker : RuleListRoute
+    data class UnadaptedIconPicker(val app: InstalledAppChoice) : RuleListRoute
+}
+
+@Composable
+internal fun RuleNavigationHost(
+    state: RuleListState,
+    onRuleIconSourceChange: (IconRule, String?, (String) -> Unit) -> Unit,
+    onBindUnadaptedApp: (InstalledAppChoice, String, (String) -> Unit) -> Unit,
+    snackbarHostState: SnackbarHostState,
+    content: @Composable (
+        onChooseIcon: (IconRule) -> Unit,
+        onAddUnadaptedApp: () -> Unit,
+        isRootNavigation: Boolean,
+    ) -> Unit,
+) {
+    val backStack = remember { navBackStackOf(RuleListRoute.List) }
+    val scope = rememberCoroutineScope()
+
+    fun showSnackbar(message: String) {
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+
+    fun returnToList() {
+        backStack.subList(1, backStack.size).clear()
+    }
+
+    fun navigate(route: RuleListRoute) {
+        if (route !in backStack) backStack.add(route)
+    }
+
+    NavDisplay(
+        backStack = backStack,
+        modifier = Modifier.fillMaxSize(),
+        onBack = { backStack.removeLastOrNull() },
+        effects = NavDisplayEffects(
+            cornerClipRadius = rememberNavSystemCornerRadius(),
+        ),
+    ) {
+        entry<RuleListRoute.List> {
+            content(
+                { navigate(RuleListRoute.IconPicker(it)) },
+                { navigate(RuleListRoute.UnadaptedAppPicker) },
+                backStack.size == 1,
+            )
+        }
+        entry<RuleListRoute.IconPicker> { route ->
+            IconPickerScreen(
+                targetAppName = route.rule.appName,
+                targetPackageName = route.rule.packageName,
+                currentSourcePackage = route.rule.iconSourcePackage,
+                libraryRules = state.libraryRules,
+                canClear = route.rule.hasManualIcon,
+                onSelect = { source ->
+                    returnToList()
+                    onRuleIconSourceChange(route.rule, source.packageName, ::showSnackbar)
+                },
+                onClear = {
+                    returnToList()
+                    onRuleIconSourceChange(route.rule, null, ::showSnackbar)
+                },
+                onBack = { backStack.removeLastOrNull() },
+            )
+        }
+        entry<RuleListRoute.UnadaptedAppPicker> {
+            InstalledAppPickerScreen(
+                apps = state.unadaptedInstalledApps,
+                onSelect = { navigate(RuleListRoute.UnadaptedIconPicker(it)) },
+                onBack = { backStack.removeLastOrNull() },
+            )
+        }
+        entry<RuleListRoute.UnadaptedIconPicker> { route ->
+            IconPickerScreen(
+                targetAppName = route.app.label,
+                targetPackageName = route.app.packageName,
+                currentSourcePackage = null,
+                libraryRules = state.libraryRules,
+                canClear = false,
+                onSelect = { source ->
+                    returnToList()
+                    onBindUnadaptedApp(route.app, source.packageName, ::showSnackbar)
+                },
+                onClear = { backStack.removeLastOrNull() },
+                onBack = { backStack.removeLastOrNull() },
+            )
+        }
+    }
 }
 
 @Composable
@@ -68,86 +162,53 @@ fun RuleListScreen(
     onRuleEnabledChange: (IconRule, Boolean, (String) -> Unit) -> Unit,
     onRuleEnabledAllChange: (IconRule, Boolean, (String) -> Unit) -> Unit,
     onInstalledRulesEnabledAllChange: (Boolean, (String) -> Unit) -> Unit,
-    onRuleIconSourceChange: (IconRule, String?, (String) -> Unit) -> Unit,
-    onBindUnadaptedApp: (InstalledAppChoice, String, (String) -> Unit) -> Unit,
-    contentPadding: PaddingValues,
-    scrollBehavior: top.yukonga.miuix.kmp.basic.ScrollBehavior,
+    bottomPadding: Dp,
     snackbarHostState: SnackbarHostState,
+    onChooseIcon: (IconRule) -> Unit,
+    onAddUnadaptedApp: () -> Unit,
+    navigationIcon: @Composable () -> Unit = {},
+    showSnackbarHost: Boolean = false,
 ) {
-    var overlay by remember { mutableStateOf<RuleListOverlay>(RuleListOverlay.None) }
+    val scrollBehavior = MiuixScrollBehavior()
+    val backdrop = rememberMiuixPageBackdrop()
+    val surfaceColor = MiuixTheme.colorScheme.surface
     val scope = rememberCoroutineScope()
 
     fun showSnackbar(message: String) {
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Scaffold(
+        topBar = {
+            MiuixBlurredTopBar(backdrop) {
+                TopAppBar(
+                    title = stringResource(R.string.rules_title),
+                    color = if (backdrop != null) Color.Transparent else surfaceColor,
+                    navigationIcon = navigationIcon,
+                    scrollBehavior = scrollBehavior,
+                )
+            }
+        },
+        snackbarHost = {
+            if (showSnackbarHost) SnackbarHost(snackbarHostState)
+        },
+    ) { innerPadding ->
         RuleListContent(
             state = state,
-            contentPadding = contentPadding,
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding(),
+                bottom = maxOf(bottomPadding, innerPadding.calculateBottomPadding()),
+            ),
             scrollBehavior = scrollBehavior,
+            backdrop = backdrop,
             onQueryChange = onQueryChange,
             onRuleEnabledChange = onRuleEnabledChange,
             onRuleEnabledAllChange = onRuleEnabledAllChange,
             onInstalledRulesEnabledAllChange = onInstalledRulesEnabledAllChange,
             onShowMessage = ::showSnackbar,
-            onChooseIcon = { overlay = RuleListOverlay.IconPicker(it) },
-            onAddUnadaptedApp = { overlay = RuleListOverlay.UnadaptedAppPicker },
+            onChooseIcon = onChooseIcon,
+            onAddUnadaptedApp = onAddUnadaptedApp,
         )
-        when (val current = overlay) {
-            RuleListOverlay.None -> Unit
-            else -> Dialog(
-                onDismissRequest = {
-                    overlay = if (current is RuleListOverlay.UnadaptedIconPicker) {
-                        RuleListOverlay.UnadaptedAppPicker
-                    } else {
-                        RuleListOverlay.None
-                    }
-                },
-                properties = DialogProperties(
-                    usePlatformDefaultWidth = false,
-                    decorFitsSystemWindows = false,
-                ),
-            ) {
-                when (current) {
-                    is RuleListOverlay.IconPicker -> IconPickerScreen(
-                        targetAppName = current.rule.appName,
-                        targetPackageName = current.rule.packageName,
-                        currentSourcePackage = current.rule.iconSourcePackage,
-                        libraryRules = state.libraryRules,
-                        canClear = current.rule.hasManualIcon,
-                        onSelect = { source ->
-                            overlay = RuleListOverlay.None
-                            onRuleIconSourceChange(current.rule, source.packageName, ::showSnackbar)
-                        },
-                        onClear = {
-                            overlay = RuleListOverlay.None
-                            onRuleIconSourceChange(current.rule, null, ::showSnackbar)
-                        },
-                        onBack = { overlay = RuleListOverlay.None },
-                    )
-                    is RuleListOverlay.UnadaptedAppPicker -> InstalledAppPickerScreen(
-                        apps = state.unadaptedInstalledApps,
-                        onSelect = { overlay = RuleListOverlay.UnadaptedIconPicker(it) },
-                        onBack = { overlay = RuleListOverlay.None },
-                    )
-                    is RuleListOverlay.UnadaptedIconPicker -> IconPickerScreen(
-                        targetAppName = current.app.label,
-                        targetPackageName = current.app.packageName,
-                        currentSourcePackage = null,
-                        libraryRules = state.libraryRules,
-                        canClear = false,
-                        onSelect = { source ->
-                            overlay = RuleListOverlay.None
-                            onBindUnadaptedApp(current.app, source.packageName, ::showSnackbar)
-                        },
-                        onClear = { overlay = RuleListOverlay.UnadaptedAppPicker },
-                        onBack = { overlay = RuleListOverlay.UnadaptedAppPicker },
-                    )
-                    RuleListOverlay.None -> Unit
-                }
-            }
-        }
     }
 }
 
@@ -156,6 +217,7 @@ private fun RuleListContent(
     state: RuleListState,
     contentPadding: PaddingValues,
     scrollBehavior: top.yukonga.miuix.kmp.basic.ScrollBehavior,
+    backdrop: LayerBackdrop?,
     onQueryChange: (String) -> Unit,
     onRuleEnabledChange: (IconRule, Boolean, (String) -> Unit) -> Unit,
     onRuleEnabledAllChange: (IconRule, Boolean, (String) -> Unit) -> Unit,
@@ -172,6 +234,15 @@ private fun RuleListContent(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .then(
+                if (backdrop != null) {
+                    Modifier.layerBackdrop(backdrop)
+                } else {
+                    Modifier
+                },
+            )
+            .scrollEndHaptic()
+            .overScrollVertical()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentPadding = contentPadding,
     ) {
@@ -451,37 +522,32 @@ internal fun StandaloneRuleListScreen(
     onBindUnadaptedApp: (InstalledAppChoice, String, (String) -> Unit) -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = stringResource(R.string.rules_title),
-                largeTitle = stringResource(R.string.rules_title),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = MiuixIcons.ChevronBackward,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
+    RuleNavigationHost(
+        state = state,
+        onRuleIconSourceChange = onRuleIconSourceChange,
+        onBindUnadaptedApp = onBindUnadaptedApp,
+        snackbarHostState = snackbarHostState,
+    ) { onChooseIcon, onAddUnadaptedApp, _ ->
         RuleListScreen(
             state = state,
             onQueryChange = onQueryChange,
             onRuleEnabledChange = onRuleEnabledChange,
             onRuleEnabledAllChange = onRuleEnabledAllChange,
             onInstalledRulesEnabledAllChange = onInstalledRulesEnabledAllChange,
-            onRuleIconSourceChange = onRuleIconSourceChange,
-            onBindUnadaptedApp = onBindUnadaptedApp,
-            contentPadding = padding,
-            scrollBehavior = scrollBehavior,
+            bottomPadding = 0.dp,
             snackbarHostState = snackbarHostState,
+            onChooseIcon = onChooseIcon,
+            onAddUnadaptedApp = onAddUnadaptedApp,
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = MiuixIcons.ChevronBackward,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            },
+            showSnackbarHost = true,
         )
     }
 }
@@ -491,18 +557,16 @@ internal fun StandaloneRuleListScreen(
 private fun RuleListScreenPreview() {
     ColorOSNotifyIconTheme {
         val snackbarHostState = remember { SnackbarHostState() }
-        val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
         RuleListScreen(
             state = RuleListState(),
             onQueryChange = {},
             onRuleEnabledChange = { _, _, _ -> },
             onRuleEnabledAllChange = { _, _, _ -> },
             onInstalledRulesEnabledAllChange = { _, _ -> },
-            onRuleIconSourceChange = { _, _, _ -> },
-            onBindUnadaptedApp = { _, _, _ -> },
-            contentPadding = PaddingValues(),
-            scrollBehavior = scrollBehavior,
+            bottomPadding = 0.dp,
             snackbarHostState = snackbarHostState,
+            onChooseIcon = {},
+            onAddUnadaptedApp = {},
         )
     }
 }

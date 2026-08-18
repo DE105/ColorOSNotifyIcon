@@ -403,11 +403,6 @@ fun IosLiquidGlassNavigationBar(
                                     backdrop = backdrop,
                                     shape = { pillShape },
                                     effects = {
-                                        // 24dp lens + 16dp press-scale 采样范围须在 blur() 之前抬高 padding。
-                                        // blur() 会按调用时的 padding 烘焙采样 clamp；若之后再抬高，
-                                        // recording 尺寸与 clamp 不一致，底/右边缘折射带会错位（反射异常）。
-                                        // 见 miuix 3528c846；0.9.3 尚无库内二次 apply 兜底，必须前置。
-                                        padding = maxOf(padding, 40.dp.toPx())
                                         vibrancy()
                                         blur(
                                             4.dp.toPx(),
@@ -455,8 +450,6 @@ fun IosLiquidGlassNavigationBar(
                                 backdrop = backdrop,
                                 shape = { pillShape },
                                 effects = {
-                                    // 与可见底栏一致：padding 必须先于 blur()（0.9.3 无库内兜底）
-                                    padding = maxOf(padding, 24.dp.toPx())
                                     vibrancy()
                                     blur(4.dp.toPx(), 4.dp.toPx())
                                     lens(
