@@ -14,6 +14,7 @@
 - Oplus Push 系统推送特判（可关）
 - 未适配应用使用通用圆形通知图标作为占位符（可关）
 - 本地规则管理，支持按应用启用或全部替换
+- 支持为应用手动指定规则库图标，优先于包名匹配
 - 手动同步远程规则，不做后台自动同步
 - 配置写入 Xposed 框架侧，通知 SystemUI 刷新
 - 桌面图标可隐藏，隐藏后仍可从 LSPosed 模块列表打开
@@ -73,7 +74,7 @@ Oplus Push 代表目标应用生成的位图不等同于应用原生 `smallIcon`
 
 ## 安装
 
-1. 从 [GitHub Releases](https://github.com/wowohut/ColorOSNotifyIcon/releases/latest) 下载 APK
+1. 从 [GitHub Releases](https://github.com/Mangi-11/Glyph/releases/latest) 下载 APK
 2. 在 LSPosed 中启用模块
 3. 勾选作用域：系统框架 `system`、系统界面 `com.android.systemui`
 4. 打开 Glyph（隐藏桌面图标后可从 LSPosed 模块列表打开），同步规则
@@ -106,7 +107,8 @@ Fork 自 [fankes/ColorOSNotifyIcon](https://github.com/fankes/ColorOSNotifyIcon)
 
 - 用 [modern libxposed API 102](https://github.com/libxposed/api) 重写了 Hook 入口
 - 移除了旧框架兼容层
-- 用 [Miuix](https://github.com/compose-miuix-ui/miuix) 重写了 App UI
+- 用 [Miuix](https://github.com/compose-miuix-ui/miuix) 重写了 App UI（首页 / 规则 / 关于三栏，液态玻璃底栏）
+- 关于页支持打开本项目与 GitHub Releases 检查更新
 - 功能收敛到通知图标增强，去除其余杂项功能
 - 支持通知图标跟随桌面主题或自定义图标
 - 补齐 ColorOS 经典时钟息屏通知图标（`LockScreenNotificationIconData` → AodPlugin，以及旧版 `NotificationLayout`）
