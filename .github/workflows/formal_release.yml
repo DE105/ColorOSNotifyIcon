@@ -25,10 +25,10 @@ jobs:
         shell: bash
         run: test "$GITHUB_REF" = "refs/heads/master"
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Prepare Java 21
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           java-version: 21
           java-package: jdk
@@ -96,11 +96,11 @@ jobs:
           unset RELEASE_STORE_PASSWORD RELEASE_KEY_PASSWORD RELEASE_KEY_ALIAS
           "$build_tools/apksigner" verify --verbose --print-certs "$release_target"
           echo "apk_path=$release_target" >> "$GITHUB_OUTPUT"
-          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload production-signed artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           path: ${{ steps.release.outputs.apk_path }}
-          name: Glyph-${{ steps.release.outputs.version_name }}
+          archive: false
           if-no-files-found: error
+          retention-days: 14
