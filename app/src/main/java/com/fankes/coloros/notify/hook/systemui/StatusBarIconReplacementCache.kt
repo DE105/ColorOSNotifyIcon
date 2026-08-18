@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
  * never call IconManager.getIconDescriptor.
  */
 internal object StatusBarIconReplacementCache {
-    private data class Entry(
+    data class Entry(
         val icon: Icon,
         val isColorable: Boolean,
     )
@@ -22,12 +22,15 @@ internal object StatusBarIconReplacementCache {
         byPackage[packageName] = entry
     }
 
-    fun iconFor(notificationKey: String?, packageName: String?): Icon? {
+    fun iconFor(notificationKey: String?, packageName: String?): Icon? =
+        lookup(notificationKey, packageName)?.icon
+
+    fun lookup(notificationKey: String?, packageName: String?): Entry? {
         if (notificationKey != null) {
-            byKey[notificationKey]?.icon?.let { return it }
+            byKey[notificationKey]?.let { return it }
         }
         if (packageName != null) {
-            return byPackage[packageName]?.icon
+            return byPackage[packageName]
         }
         return null
     }

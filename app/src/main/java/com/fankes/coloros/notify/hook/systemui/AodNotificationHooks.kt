@@ -142,16 +142,16 @@ internal class AodNotificationHooks(
                 context = context,
                 sbn = notification,
                 originalSmallIcon = notification.originalSmallIcon(diagnostics, snapshot.revision),
-            )?.icon?.also { icon ->
+            )?.also { plan ->
                 if (configuration.isCurrent(snapshot)) {
                     StatusBarIconReplacementCache.put(
                         notificationKey = notification.key,
                         packageName = notification.packageName,
-                        icon = icon,
-                        isColorable = true,
+                        icon = plan.icon,
+                        isColorable = plan.isColorable,
                     )
                 }
-            }
+            }?.icon
         } catch (exception: Exception) {
             diagnostics.runtimeFailure(
                 scope = "aod:resolve_icon",

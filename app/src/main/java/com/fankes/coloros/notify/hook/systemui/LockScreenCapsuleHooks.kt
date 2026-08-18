@@ -193,7 +193,7 @@ internal class LockScreenCapsuleHooks(
         val plan = resolveReplacementPlan(iconView.context, sbn.key, sbn.packageName, sbn)
             ?: return false
         if (!configuration.isCurrent(plan.snapshot)) return false
-        applyLockScreenGlyph(iconView, plan.drawable)
+        applyLockScreenGlyph(iconView, plan.drawable, plan.isColorable)
         return true
     }
 
@@ -260,6 +260,7 @@ internal class LockScreenCapsuleHooks(
         val snapshot: RuntimeSnapshot,
         val icon: Icon,
         val drawable: Drawable,
+        val isColorable: Boolean,
     )
 
     private fun resolveReplacementPlan(
@@ -268,9 +269,9 @@ internal class LockScreenCapsuleHooks(
         packageName: String?,
         sbn: StatusBarNotification?,
     ): ReplacementPlan? {
-        StatusBarIconReplacementCache.iconFor(key, packageName)?.let { cached ->
+        StatusBarIconReplacementCache.lookup(key, packageName)?.let { cached ->
             val drawable = try {
-                cached.loadDrawable(context)?.mutate()
+                cached.icon.loadDrawable(context)?.mutate()
             } catch (exception: Exception) {
                 diagnostics.runtimeFailure(
                     scope = "lockscreen:capsule:load_cached",
@@ -281,7 +282,12 @@ internal class LockScreenCapsuleHooks(
                 null
             } ?: return null
             replacementDrawables.add(drawable)
-            return ReplacementPlan(configuration.snapshot, cached, drawable)
+            return ReplacementPlan(
+                snapshot = configuration.snapshot,
+                icon = cached.icon,
+                drawable = drawable,
+                isColorable = cached.isColorable,
+            )
         }
 
         val notification = sbn ?: return null
@@ -294,7 +300,12 @@ internal class LockScreenCapsuleHooks(
             )?.let { plan ->
                 val drawable = plan.icon.loadDrawable(context)?.mutate() ?: return null
                 replacementDrawables.add(drawable)
-                ReplacementPlan(snapshot, plan.icon, drawable).also {
+                ReplacementPlan(
+                    snapshot = snapshot,
+                    icon = plan.icon,
+                    drawable = drawable,
+                    isColorable = plan.isColorable,
+                ).also {
                     if (configuration.isCurrent(snapshot)) {
                         StatusBarIconReplacementCache.put(
                             notificationKey = notification.key,
@@ -316,12 +327,14 @@ internal class LockScreenCapsuleHooks(
         }
     }
 
-    private fun applyLockScreenGlyph(iconView: ImageView, drawable: Drawable) {
+    private fun applyLockScreenGlyph(iconView: ImageView, drawable: Drawable, isColorable: Boolean) {
         replacementDrawables.add(drawable)
         iconView.clearColorFilter()
         iconView.imageTintList = null
         iconView.setImageDrawable(drawable)
-        iconView.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+        if (LockScreenCapsuleColorPolicy.shouldApplyWhiteGlyphTint(isColorable)) {
+            iconView.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+        }
     }
 
     private fun isLockScreenIslandIconView(view: View?): Boolean {
