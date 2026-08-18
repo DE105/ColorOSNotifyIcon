@@ -85,10 +85,10 @@ object RuleRepository {
     }
 
     private fun syncBlocking(): SyncResult {
-        val osRules = download("ColorOS", ModuleInfo.RULES_OS_URL, MAX_TOTAL_DOWNLOAD_BYTES)
+        val osRules = download("ColorOS", ModuleInfo.RULES_OS_URLS, MAX_TOTAL_DOWNLOAD_BYTES)
         val appRules = download(
             source = "applications",
-            url = ModuleInfo.RULES_APP_URL,
+            urls = ModuleInfo.RULES_APP_URLS,
             maxBytes = MAX_TOTAL_DOWNLOAD_BYTES - osRules.byteCount,
         )
         val merged = try {
@@ -122,10 +122,27 @@ object RuleRepository {
 
     private fun download(
         source: String,
-        url: String,
+        urls: List<String>,
         maxBytes: Int,
-    ): DownloadedPayload = try {
+    ): DownloadedPayload {
         require(maxBytes > 0) { "Combined rule payload exceeds $MAX_TOTAL_DOWNLOAD_BYTES bytes" }
+        require(urls.isNotEmpty()) { "No rule catalog URL configured for $source" }
+        var firstFailure: Exception? = null
+        for (url in urls) {
+            try {
+                return downloadOnce(url, maxBytes)
+            } catch (exception: Exception) {
+                if (firstFailure == null) {
+                    firstFailure = exception
+                } else {
+                    firstFailure.addSuppressed(exception)
+                }
+            }
+        }
+        throw SyncFailure.Download(source, firstFailure ?: IllegalStateException("No download attempts"))
+    }
+
+    private fun downloadOnce(url: String, maxBytes: Int): DownloadedPayload {
         val request = Request.Builder().url(url).get().build()
         httpClient.newCall(request).execute().use { response ->
             check(response.isSuccessful) { "HTTP ${response.code}" }
@@ -138,10 +155,8 @@ object RuleRepository {
             }
             val json = bytes.toString(Charsets.UTF_8).trim()
             require(json.startsWith("[")) { "Response is not a JSON array" }
-            DownloadedPayload(json, bytes.size)
+            return DownloadedPayload(json, bytes.size)
         }
-    } catch (exception: Exception) {
-        throw SyncFailure.Download(source, exception)
     }
 
     private fun mergeArrays(left: String, right: String): String {

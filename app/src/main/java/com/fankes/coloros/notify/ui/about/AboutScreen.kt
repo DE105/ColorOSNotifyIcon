@@ -38,6 +38,8 @@ import top.yukonga.miuix.kmp.basic.ScrollBehavior
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 
@@ -59,8 +61,11 @@ fun AboutScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .scrollEndHaptic()
+            .overScrollVertical()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentPadding = contentPadding,
+        overscrollEffect = null,
     ) {
         item {
             PreferenceGroup {

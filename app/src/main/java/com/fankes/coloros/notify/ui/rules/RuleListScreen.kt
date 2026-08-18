@@ -1,5 +1,8 @@
 package com.fankes.coloros.notify.ui.rules
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,12 +25,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.fankes.coloros.notify.R
 import com.fankes.coloros.notify.rules.IconRule
 import com.fankes.coloros.notify.rules.RuleStore
@@ -53,13 +56,8 @@ import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-
-private sealed class RuleListOverlay {
-    data object None : RuleListOverlay()
-    data class IconPicker(val rule: IconRule) : RuleListOverlay()
-    data object UnadaptedAppPicker : RuleListOverlay()
-    data class UnadaptedIconPicker(val app: InstalledAppChoice) : RuleListOverlay()
-}
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 @Composable
 fun RuleListScreen(
@@ -74,11 +72,36 @@ fun RuleListScreen(
     scrollBehavior: top.yukonga.miuix.kmp.basic.ScrollBehavior,
     snackbarHostState: SnackbarHostState,
 ) {
-    var overlay by remember { mutableStateOf<RuleListOverlay>(RuleListOverlay.None) }
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var pendingRule by remember { mutableStateOf<IconRule?>(null) }
 
     fun showSnackbar(message: String) {
         scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+
+    val iconPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val rule = pendingRule ?: return@rememberLauncherForActivityResult
+        pendingRule = null
+        if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+        when {
+            IconPickerActivity.resultWasCleared(result.data) ->
+                onRuleIconSourceChange(rule, null, ::showSnackbar)
+            else -> IconPickerActivity.resultSourcePackage(result.data)?.let { sourcePackage ->
+                onRuleIconSourceChange(rule, sourcePackage, ::showSnackbar)
+            }
+        }
+    }
+    val unadaptedPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+        val targetPackage = InstalledAppPickerActivity.resultTargetPackage(result.data) ?: return@rememberLauncherForActivityResult
+        val sourcePackage = InstalledAppPickerActivity.resultSourcePackage(result.data) ?: return@rememberLauncherForActivityResult
+        val app = state.unadaptedInstalledApps.firstOrNull { it.packageName == targetPackage } ?: return@rememberLauncherForActivityResult
+        onBindUnadaptedApp(app, sourcePackage, ::showSnackbar)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -91,63 +114,24 @@ fun RuleListScreen(
             onRuleEnabledAllChange = onRuleEnabledAllChange,
             onInstalledRulesEnabledAllChange = onInstalledRulesEnabledAllChange,
             onShowMessage = ::showSnackbar,
-            onChooseIcon = { overlay = RuleListOverlay.IconPicker(it) },
-            onAddUnadaptedApp = { overlay = RuleListOverlay.UnadaptedAppPicker },
+            onChooseIcon = { rule ->
+                pendingRule = rule
+                iconPickerLauncher.launch(
+                    IconPickerActivity.createIntent(
+                        context = context,
+                        targetAppName = rule.appName,
+                        targetPackageName = rule.packageName,
+                        currentSourcePackage = rule.iconSourcePackage,
+                        canClear = rule.hasManualIcon,
+                    ),
+                )
+            },
+            onAddUnadaptedApp = {
+                unadaptedPickerLauncher.launch(
+                    InstalledAppPickerActivity.createIntent(context),
+                )
+            },
         )
-        when (val current = overlay) {
-            RuleListOverlay.None -> Unit
-            else -> Dialog(
-                onDismissRequest = {
-                    overlay = if (current is RuleListOverlay.UnadaptedIconPicker) {
-                        RuleListOverlay.UnadaptedAppPicker
-                    } else {
-                        RuleListOverlay.None
-                    }
-                },
-                properties = DialogProperties(
-                    usePlatformDefaultWidth = false,
-                    decorFitsSystemWindows = false,
-                ),
-            ) {
-                when (current) {
-                    is RuleListOverlay.IconPicker -> IconPickerScreen(
-                        targetAppName = current.rule.appName,
-                        targetPackageName = current.rule.packageName,
-                        currentSourcePackage = current.rule.iconSourcePackage,
-                        libraryRules = state.libraryRules,
-                        canClear = current.rule.hasManualIcon,
-                        onSelect = { source ->
-                            overlay = RuleListOverlay.None
-                            onRuleIconSourceChange(current.rule, source.packageName, ::showSnackbar)
-                        },
-                        onClear = {
-                            overlay = RuleListOverlay.None
-                            onRuleIconSourceChange(current.rule, null, ::showSnackbar)
-                        },
-                        onBack = { overlay = RuleListOverlay.None },
-                    )
-                    is RuleListOverlay.UnadaptedAppPicker -> InstalledAppPickerScreen(
-                        apps = state.unadaptedInstalledApps,
-                        onSelect = { overlay = RuleListOverlay.UnadaptedIconPicker(it) },
-                        onBack = { overlay = RuleListOverlay.None },
-                    )
-                    is RuleListOverlay.UnadaptedIconPicker -> IconPickerScreen(
-                        targetAppName = current.app.label,
-                        targetPackageName = current.app.packageName,
-                        currentSourcePackage = null,
-                        libraryRules = state.libraryRules,
-                        canClear = false,
-                        onSelect = { source ->
-                            overlay = RuleListOverlay.None
-                            onBindUnadaptedApp(current.app, source.packageName, ::showSnackbar)
-                        },
-                        onClear = { overlay = RuleListOverlay.UnadaptedAppPicker },
-                        onBack = { overlay = RuleListOverlay.UnadaptedAppPicker },
-                    )
-                    RuleListOverlay.None -> Unit
-                }
-            }
-        }
     }
 }
 
@@ -172,8 +156,11 @@ private fun RuleListContent(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .scrollEndHaptic()
+            .overScrollVertical()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         contentPadding = contentPadding,
+        overscrollEffect = null,
     ) {
             item {
                 SearchBar(

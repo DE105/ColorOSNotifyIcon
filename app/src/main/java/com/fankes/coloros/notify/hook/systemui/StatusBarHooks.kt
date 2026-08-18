@@ -117,7 +117,9 @@ internal class StatusBarHooks(
                 members.statusBarIcon.set(replacement, plan.icon)
                 // Keep Notification.smallIcon in sync so ColorOS group/AOD paths that read it
                 // directly (GroupIconManager, etc.) see the same replacement.
-                members.notificationSmallIcon?.set(sbn.notification, plan.icon)
+                if (snapshot.config.panelIconReplacementEnabled) {
+                    members.notificationSmallIcon?.set(sbn.notification, plan.icon)
+                }
                 iconClaims.claimDescriptor(replacement, sbn.key, plan.isColorable)
                 StatusBarIconReplacementCache.put(
                     notificationKey = sbn.key,

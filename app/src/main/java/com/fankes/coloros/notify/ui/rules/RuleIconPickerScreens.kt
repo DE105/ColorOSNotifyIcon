@@ -1,6 +1,5 @@
 package com.fankes.coloros.notify.ui.rules
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,6 +62,8 @@ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 @Composable
 internal fun IconPickerScreen(
@@ -75,7 +76,6 @@ internal fun IconPickerScreen(
     onClear: () -> Unit,
     onBack: () -> Unit,
 ) {
-    BackHandler(onBack = onBack)
     var query by remember { mutableStateOf("") }
     var searchExpanded by remember { mutableStateOf(false) }
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
@@ -126,6 +126,8 @@ internal fun IconPickerScreen(
             columns = GridCells.Adaptive(minSize = 88.dp),
             modifier = Modifier
                 .fillMaxSize()
+                .scrollEndHaptic()
+                .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
                 start = 12.dp,
@@ -135,6 +137,7 @@ internal fun IconPickerScreen(
             ),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
+            overscrollEffect = null,
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 SearchBar(
@@ -194,7 +197,6 @@ internal fun InstalledAppPickerScreen(
     onSelect: (InstalledAppChoice) -> Unit,
     onBack: () -> Unit,
 ) {
-    BackHandler(onBack = onBack)
     var query by remember { mutableStateOf("") }
     var searchExpanded by remember { mutableStateOf(false) }
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
@@ -232,8 +234,11 @@ internal fun InstalledAppPickerScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .scrollEndHaptic()
+                .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = paddingValues,
+            overscrollEffect = null,
         ) {
             item {
                 SearchBar(
