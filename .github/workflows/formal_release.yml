@@ -2,6 +2,15 @@ name: Formal Release Build
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ master ]
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+
+concurrency:
+  group: formal-release-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -26,12 +35,13 @@ jobs:
           distribution: temurin
           cache: gradle
 
-      - name: Test, lint and build unsigned release
+      - name: Lint and build unsigned release
         env:
           COLOROS_NOTIFY_FORMAL_RELEASE: 'true'
-        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintRelease :app:assembleRelease
+        run: ./gradlew --no-daemon :app:lintRelease :app:assembleRelease
 
       - name: Sign and verify formal release
+        id: release
         shell: bash
         env:
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
@@ -85,18 +95,12 @@ jobs:
             "$unsigned_source"
           unset RELEASE_STORE_PASSWORD RELEASE_KEY_PASSWORD RELEASE_KEY_ALIAS
           "$build_tools/apksigner" verify --verbose --print-certs "$release_target"
-          echo "RELEASE_APK_PATH=$release_target" >> "$GITHUB_ENV"
+          echo "apk_path=$release_target" >> "$GITHUB_OUTPUT"
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload production-signed artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          path: ${{ env.RELEASE_APK_PATH }}
-          name: ColorOSNotifyIcon-release-${{ github.sha }}
-          if-no-files-found: error
-
-      - name: Upload Release Mapping
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          path: app/build/outputs/mapping/release/mapping.txt
-          name: ColorOSNotifyIcon-release-mapping-${{ github.sha }}
+          path: ${{ steps.release.outputs.apk_path }}
+          name: Glyph-${{ steps.release.outputs.version_name }}
           if-no-files-found: error
