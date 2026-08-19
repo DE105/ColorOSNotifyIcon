@@ -106,6 +106,23 @@ internal data class AodMembers(
     val getLockScreenNotificationIconData: Method?,
 )
 
+internal data class FullScreenBannerMembers(
+    val notificationEntryGetSbn: Method,
+    val showBanner: Method?,
+    val buildNotification: Method?,
+    val updateBanner: Method?,
+    val bannerSetIcon: Method?,
+    val builderIcon: Field?,
+    val builderAvatarIcon: Field?,
+    val lastNotificationEntry: Field?,
+    val helperContext: Field?,
+    val helperFullScreenBanner: Field?,
+    val bannerIconView: Field?,
+    val bannerHelper: Field?,
+    val bannerPackageName: Field?,
+    val backgroundSetIcon: Method?,
+)
+
 internal object SystemUiMembers {
 
     fun resolveStatusBar(
@@ -787,6 +804,124 @@ internal object SystemUiMembers {
         )
     }
 
+    fun resolveFullScreenBanner(
+        classLoader: ClassLoader,
+        diagnostics: Diagnostics,
+    ): FullScreenBannerMembers? {
+        val helper = loadOptional(FULL_SCREEN_BANNER_HELPER, classLoader)
+        val banner = loadOptional(FULL_SCREEN_BANNER, classLoader)
+        val builder = loadOptional(FULL_SCREEN_BANNER_BUILDER, classLoader)
+        val notificationEntry = loadOptional(NOTIFICATION_ENTRY, classLoader)
+        if (helper == null || banner == null || notificationEntry == null) {
+            diagnostics.memberMissing(
+                scope = "systemui:fullscreen_banner:classes",
+                message = "未找到 FullScreenBanner 相关类，跳过全屏轻反馈图标替换",
+            )
+            return null
+        }
+
+        val notificationEntryGetSbn = Reflection.findMethodReturning(
+            notificationEntry,
+            "getSbn",
+            StatusBarNotification::class.java,
+        ) ?: run {
+            diagnostics.memberMissing(
+                scope = "systemui:fullscreen_banner:entry",
+                message = "未找到 NotificationEntry.getSbn()，跳过全屏轻反馈图标替换",
+            )
+            return null
+        }
+
+        val buildNotification = builder?.let {
+            Reflection.findMethodReturning(
+                helper,
+                "buildNotification",
+                it,
+                Context::class.java,
+                notificationEntry,
+            )
+        }
+        val showBanner = Reflection.findMethodReturning(
+            helper,
+            "showBanner",
+            Void.TYPE,
+            notificationEntry,
+        )
+        val updateBanner = builder?.let {
+            Reflection.findMethodReturning(banner, "updateBanner", Void.TYPE, it)
+        }
+        val bannerSetIcon = Reflection.findMethodReturning(
+            banner,
+            "setIcon",
+            Void.TYPE,
+            Drawable::class.java,
+            Boolean::class.javaPrimitiveType!!,
+            Drawable::class.java,
+            Boolean::class.javaPrimitiveType!!,
+        )
+        val builderIcon = builder?.let {
+            Reflection.findField(it, "mIcon", Drawable::class.java)
+        }
+        val builderAvatarIcon = builder?.let {
+            Reflection.findField(it, "mAvatarIcon", Drawable::class.java)
+        }
+        val lastNotificationEntry = Reflection.findField(
+            helper,
+            "mLastNotificationEntry",
+            notificationEntry,
+        )
+        val helperContext = Reflection.findField(helper, "mContext", Context::class.java)
+        val helperFullScreenBanner = Reflection.findField(helper, "mFullScreenBanner", banner)
+        val bannerIconView = Reflection.findField(banner, "mIvAppIcon", ImageView::class.java)
+        val bannerHelper = Reflection.findField(banner, "mBannerHelper", helper)
+        val bannerPackageName = Reflection.findField(banner, "mPackageName", String::class.java)
+        val backgroundView = loadOptional(FULL_SCREEN_BACKGROUND_VIEW, classLoader)
+        val backgroundSetIcon = backgroundView?.let {
+            Reflection.findMethodReturning(it, "setIcon", Void.TYPE, Drawable::class.java)
+        }
+
+        val hasBuilderPath = buildNotification != null && builderIcon != null
+        val hasUpdatePath = updateBanner != null && builderIcon != null
+        val hasSetIconPath = bannerSetIcon != null
+        val hasShowPath = showBanner != null
+        if (!hasBuilderPath && !hasUpdatePath && !hasSetIconPath && !hasShowPath) {
+            diagnostics.memberMissing(
+                scope = "systemui:fullscreen_banner:paths",
+                message = "未找到 FullScreenBanner 图标入口（buildNotification / updateBanner / setIcon）",
+            )
+            return null
+        }
+        if (buildNotification == null) {
+            diagnostics.memberMissing(
+                scope = "systemui:fullscreen_banner:build",
+                message = "未找到 FullScreenBannerHelper.buildNotification，依赖 updateBanner/setIcon 兜底",
+            )
+        }
+        if (bannerSetIcon == null) {
+            diagnostics.memberMissing(
+                scope = "systemui:fullscreen_banner:set_icon",
+                message = "未找到 FullScreenBanner.setIcon(Drawable, boolean, Drawable, boolean)",
+            )
+        }
+
+        return FullScreenBannerMembers(
+            notificationEntryGetSbn = notificationEntryGetSbn,
+            showBanner = showBanner,
+            buildNotification = buildNotification,
+            updateBanner = updateBanner,
+            bannerSetIcon = bannerSetIcon,
+            builderIcon = builderIcon,
+            builderAvatarIcon = builderAvatarIcon,
+            lastNotificationEntry = lastNotificationEntry,
+            helperContext = helperContext,
+            helperFullScreenBanner = helperFullScreenBanner,
+            bannerIconView = bannerIconView,
+            bannerHelper = bannerHelper,
+            bannerPackageName = bannerPackageName,
+            backgroundSetIcon = backgroundSetIcon,
+        )
+    }
+
     fun resolveEntryUseAppIcon(classLoader: ClassLoader): EntryUseAppIconMembers? {
         val entryExtension = loadOptional(OPLUS_NOTIFICATION_ENTRY_EXTENSION, classLoader) ?: return null
         val pipelineEntry = loadOptional(PIPELINE_ENTRY, classLoader) ?: return null
@@ -888,4 +1023,12 @@ internal object SystemUiMembers {
         "com.oplus.systemui.notification.lockscreen.notification.CapsuleNotificationCardView"
     private const val CAPSULE_NOTIFICATION_UTILS =
         "com.oplus.systemui.notification.lockscreen.notification.CapsuleNotificationUtils"
+    private const val FULL_SCREEN_BANNER_HELPER =
+        "com.oplus.systemui.notification.interruption.fullscreenbanner.FullScreenBannerHelper"
+    private const val FULL_SCREEN_BANNER =
+        "com.oplus.systemui.notification.interruption.fullscreenbanner.view.FullScreenBanner"
+    private const val FULL_SCREEN_BANNER_BUILDER =
+        "com.oplus.systemui.notification.interruption.fullscreenbanner.view.FullScreenBanner\$Builder"
+    private const val FULL_SCREEN_BACKGROUND_VIEW =
+        "com.oplus.systemui.notification.interruption.fullscreenbanner.view.FullScreenBackgroundView"
 }

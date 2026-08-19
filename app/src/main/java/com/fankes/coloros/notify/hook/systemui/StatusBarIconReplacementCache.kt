@@ -4,8 +4,8 @@ import android.graphics.drawable.Icon
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Shares successful status-bar Icon replacements with AOD / lock-screen capsule pipelines that
- * never call IconManager.getIconDescriptor.
+ * Shares successful status-bar Icon replacements with AOD / lock-screen capsule
+ * pipelines that never call IconManager.getIconDescriptor.
  */
 internal object StatusBarIconReplacementCache {
     data class Entry(

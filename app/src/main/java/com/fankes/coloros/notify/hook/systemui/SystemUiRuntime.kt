@@ -134,6 +134,17 @@ internal class SystemUiRuntime(
                 ).install()
             }
         }
+
+        installFeature("fullscreen_banner") {
+            SystemUiMembers.resolveFullScreenBanner(classLoader, diagnostics)?.let { members ->
+                FullScreenBannerHooks(
+                    hooks = hooks,
+                    diagnostics = diagnostics,
+                    configuration = configuration,
+                    members = members,
+                ).install()
+            }
+        }
     }
 
     private inline fun runPublishedTask(
