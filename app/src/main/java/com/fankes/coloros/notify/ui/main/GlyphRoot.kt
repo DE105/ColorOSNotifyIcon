@@ -1,8 +1,11 @@
 package com.fankes.coloros.notify.ui.main
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import com.fankes.coloros.notify.rules.IconRule
 import com.fankes.coloros.notify.rules.RuleStore
 import com.fankes.coloros.notify.ui.about.AboutScreen
@@ -12,6 +15,7 @@ import com.fankes.coloros.notify.ui.rules.InstalledAppChoice
 import com.fankes.coloros.notify.ui.rules.RuleNavigationHost
 import com.fankes.coloros.notify.ui.rules.RuleListScreen
 import com.fankes.coloros.notify.ui.rules.RuleListState
+import com.fankes.coloros.notify.ui.theme.ThemeConfig
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 
@@ -19,6 +23,8 @@ import top.yukonga.miuix.kmp.basic.SnackbarHostState
 fun GlyphRoot(
     homeState: HomeScreenState,
     ruleState: RuleListState,
+    themeConfig: ThemeConfig,
+    onThemeConfigChange: (ThemeConfig) -> Unit,
     onSyncRules: ((String) -> Unit) -> Unit,
     onRestartSystemUi: ((String) -> Unit) -> Unit,
     onRulesEnabledChange: (Boolean, (String) -> Unit) -> Unit,
@@ -36,6 +42,8 @@ fun GlyphRoot(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var rulesIsRootNavigation by remember { mutableStateOf(true) }
+    var settingsIsRootNavigation by remember { mutableStateOf(true) }
     fun showSnackbar(message: String) {
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
@@ -44,7 +52,8 @@ fun GlyphRoot(
         onRuleIconSourceChange = onRuleIconSourceChange,
         onBindUnadaptedApp = onBindUnadaptedApp,
         snackbarHostState = snackbarHostState,
-    ) { onChooseIcon, onAddUnadaptedApp, isRootNavigation ->
+        onRootNavigationChange = { rulesIsRootNavigation = it },
+    ) { onChooseIcon, onAddUnadaptedApp ->
         MainShell(
             home = MainTabSlot { bottomPadding ->
                 HomeScreen(
@@ -53,11 +62,6 @@ fun GlyphRoot(
                     snackbarHostState = snackbarHostState,
                     onSyncRules = onSyncRules,
                     onRestartSystemUi = onRestartSystemUi,
-                    onRulesEnabledChange = onRulesEnabledChange,
-                    onIconSourceModeChange = onIconSourceModeChange,
-                    onPanelIconReplacementEnabledChange = onPanelIconReplacementEnabledChange,
-                    onOplusPushSpecialHandlingEnabledChange = onOplusPushSpecialHandlingEnabledChange,
-                    onPlaceholderIconEnabledChange = onPlaceholderIconEnabledChange,
                 )
             },
             rules = MainTabSlot { bottomPadding ->
@@ -76,12 +80,31 @@ fun GlyphRoot(
             about = MainTabSlot { bottomPadding ->
                 AboutScreen(
                     bottomPadding = bottomPadding,
-                    launcherIconHidden = homeState.launcherIconHidden,
+                    homeState = homeState,
+                    themeConfig = themeConfig,
+                    onThemeConfigChange = onThemeConfigChange,
+                    onPredictiveBackChange = { enabled ->
+                        onThemeConfigChange(themeConfig.copy(predictiveBackToHomeEnabled = enabled))
+                    },
+                    onRulesEnabledChange = { onRulesEnabledChange(it, ::showSnackbar) },
+                    onIconSourceModeChange = { onIconSourceModeChange(it, ::showSnackbar) },
+                    onPanelIconReplacementEnabledChange = {
+                        onPanelIconReplacementEnabledChange(it, ::showSnackbar)
+                    },
+                    onOplusPushSpecialHandlingEnabledChange = {
+                        onOplusPushSpecialHandlingEnabledChange(it, ::showSnackbar)
+                    },
+                    onPlaceholderIconEnabledChange = {
+                        onPlaceholderIconEnabledChange(it, ::showSnackbar)
+                    },
                     onLauncherIconHiddenChange = { onLauncherIconHiddenChange(it, ::showSnackbar) },
+                    onRootNavigationChange = { settingsIsRootNavigation = it },
                 )
             },
             snackbarHostState = snackbarHostState,
-            isRootNavigation = isRootNavigation,
+            rulesIsRootNavigation = rulesIsRootNavigation,
+            settingsIsRootNavigation = settingsIsRootNavigation,
+            themeConfig = themeConfig,
         )
     }
 }

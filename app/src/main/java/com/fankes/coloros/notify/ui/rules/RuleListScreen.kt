@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,14 +78,20 @@ internal fun RuleNavigationHost(
     onRuleIconSourceChange: (IconRule, String?, (String) -> Unit) -> Unit,
     onBindUnadaptedApp: (InstalledAppChoice, String, (String) -> Unit) -> Unit,
     snackbarHostState: SnackbarHostState,
+    onRootNavigationChange: (Boolean) -> Unit = {},
     content: @Composable (
         onChooseIcon: (IconRule) -> Unit,
         onAddUnadaptedApp: () -> Unit,
-        isRootNavigation: Boolean,
     ) -> Unit,
 ) {
     val backStack = remember { navBackStackOf(RuleListRoute.List) }
     val scope = rememberCoroutineScope()
+    val isRootNavigation by remember {
+        derivedStateOf { backStack.size <= 1 }
+    }
+    LaunchedEffect(isRootNavigation) {
+        onRootNavigationChange(isRootNavigation)
+    }
 
     fun showSnackbar(message: String) {
         scope.launch { snackbarHostState.showSnackbar(message) }
@@ -109,7 +117,6 @@ internal fun RuleNavigationHost(
             content(
                 { navigate(RuleListRoute.IconPicker(it)) },
                 { navigate(RuleListRoute.UnadaptedAppPicker) },
-                backStack.size == 1,
             )
         }
         entry<RuleListRoute.IconPicker> { route ->
@@ -527,7 +534,7 @@ internal fun StandaloneRuleListScreen(
         onRuleIconSourceChange = onRuleIconSourceChange,
         onBindUnadaptedApp = onBindUnadaptedApp,
         snackbarHostState = snackbarHostState,
-    ) { onChooseIcon, onAddUnadaptedApp, _ ->
+    ) { onChooseIcon, onAddUnadaptedApp ->
         RuleListScreen(
             state = state,
             onQueryChange = onQueryChange,

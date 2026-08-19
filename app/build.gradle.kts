@@ -86,6 +86,7 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.activity.compose)
     implementation(libs.androidx.navigationevent)
+    implementation(libs.hiddenapibypass)
     debugImplementation(libs.compose.ui.tooling)
 
     implementation(libs.miuix.ui.android)
@@ -93,5 +94,6 @@ dependencies {
     implementation(libs.miuix.preference.android)
     implementation(libs.miuix.blur.android)
     implementation(libs.miuix.nav.android)
+    implementation(libs.miuix.squircle.android)
     testImplementation(libs.junit)
 }

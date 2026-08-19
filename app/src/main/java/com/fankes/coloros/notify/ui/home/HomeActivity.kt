@@ -29,7 +29,9 @@ import com.fankes.coloros.notify.ui.rules.InstalledAppChoice
 import com.fankes.coloros.notify.ui.rules.InstalledPackageInventory
 import com.fankes.coloros.notify.ui.rules.InstalledPackageSnapshot
 import com.fankes.coloros.notify.ui.rules.RuleListState
-import com.fankes.coloros.notify.ui.theme.ColorOSNotifyIconTheme
+import com.fankes.coloros.notify.ui.theme.GlyphAppTheme
+import com.fankes.coloros.notify.ui.theme.ThemeConfig
+import com.fankes.coloros.notify.ui.theme.readThemeConfig
 import io.github.libxposed.service.XposedService
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -38,6 +40,7 @@ import java.util.concurrent.atomic.AtomicLong
 class HomeActivity : ComponentActivity() {
 
     private var uiState by mutableStateOf(HomeScreenState())
+    private var themeConfig by mutableStateOf(ThemeConfig())
     private var ruleState by mutableStateOf(RuleListState())
     private var currentService: XposedService? = null
     private val loadRequest = AtomicLong()
@@ -53,15 +56,18 @@ class HomeActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        themeConfig = readThemeConfig(this)
         refreshLocalState(currentService = XposedServiceBridge.getCurrentService())
         loadRules()
 
         enableEdgeToEdge()
         setContent {
-            ColorOSNotifyIconTheme {
+            GlyphAppTheme(themeConfig = themeConfig) {
                 GlyphRoot(
                     homeState = uiState,
                     ruleState = ruleState,
+                    themeConfig = themeConfig,
+                    onThemeConfigChange = { themeConfig = it },
                     onSyncRules = ::syncRules,
                     onRestartSystemUi = ::performRestartSystemUi,
                     onRulesEnabledChange = ::setRulesEnabled,

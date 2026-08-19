@@ -3,6 +3,7 @@ package com.fankes.coloros.notify.framework
 import com.fankes.coloros.notify.diagnostics.AppDiagnostics
 import com.fankes.coloros.notify.diagnostics.DiagnosticEvent
 import com.fankes.coloros.notify.diagnostics.DiagnosticLevel
+import java.io.File
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.concurrent.Executors
@@ -11,9 +12,9 @@ import java.util.concurrent.TimeoutException
 
 object SystemUiRestarter {
 
-    class RestartFailure internal constructor(cause: Exception) :
+    class RestartFailure internal constructor(cause: Exception, message: String) :
         Exception("Unable to restart SystemUI", cause) {
-        val userMessage: String = "无法执行 SystemUI 重启命令"
+        val userMessage: String = message
     }
 
     private val executor = Executors.newSingleThreadExecutor { runnable ->
@@ -56,7 +57,7 @@ object SystemUiRestarter {
 
     private fun failureResult(cause: Exception): Result<Unit> {
         if (cause is InterruptedException) Thread.currentThread().interrupt()
-        val failure = RestartFailure(cause)
+        val failure = RestartFailure(cause, userMessageFor(cause))
         AppDiagnostics.logger.report(
             level = DiagnosticLevel.Error,
             event = DiagnosticEvent.SystemUiRestartFailed,
@@ -71,7 +72,8 @@ object SystemUiRestarter {
     }
 
     private fun restartBlocking() {
-        val process = ProcessBuilder("su", "-c", restartCommand)
+        val suCommand = resolveSuCommand()
+        val process = ProcessBuilder(suCommand, "-c", restartCommand)
             .redirectErrorStream(true)
             .start()
         try {
@@ -79,12 +81,41 @@ object SystemUiRestarter {
                 throw TimeoutException("SystemUI restart command timed out")
             }
             // Drain the merged stream without exposing shell output to UI or diagnostics.
-            BufferedReader(InputStreamReader(process.inputStream)).use { it.readText() }
+            val output = BufferedReader(InputStreamReader(process.inputStream)).use { it.readText() }
             check(process.exitValue() == 0) {
-                "SystemUI restart command exited with ${process.exitValue()}"
+                "SystemUI restart command exited with ${process.exitValue()}; output=$output"
             }
         } finally {
             if (process.isAlive) process.destroyForcibly()
+        }
+    }
+
+    private fun resolveSuCommand(): String {
+        val candidates = listOf(
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/system_ext/bin/su",
+            "/product/bin/su",
+            "/sbin/su",
+            "/su/bin/su",
+            "su",
+        )
+        return candidates.firstOrNull { candidate ->
+            candidate == "su" || File(candidate).exists()
+        } ?: "su"
+    }
+
+    private fun userMessageFor(cause: Exception): String {
+        val detail = cause.message.orEmpty()
+        return when {
+            cause is TimeoutException -> "SystemUI 重启命令超时，请检查 Root 弹窗是否已授权"
+            detail.contains("Cannot run program", ignoreCase = true) ||
+                detail.contains("error=2", ignoreCase = true) ->
+                "未找到 su 命令，请确认 Root 环境已正确加载"
+            detail.contains("Permission denied", ignoreCase = true) ||
+                detail.contains("denied", ignoreCase = true) ->
+                "Root 权限被拒绝，请在 Root 管理器中允许 Glyph"
+            else -> "无法执行 SystemUI 重启命令"
         }
     }
 

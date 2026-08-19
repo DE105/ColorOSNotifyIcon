@@ -45,7 +45,6 @@ import com.fankes.coloros.notify.diagnostics.AppDiagnostics
 import com.fankes.coloros.notify.diagnostics.DiagnosticEvent
 import com.fankes.coloros.notify.diagnostics.DiagnosticLevel
 import com.fankes.coloros.notify.diagnostics.OccurrencePolicy
-import com.fankes.coloros.notify.rules.RuleStore
 import com.fankes.coloros.notify.ui.component.MiuixBlurredTopBar
 import com.fankes.coloros.notify.ui.component.PreferenceGroup
 import com.fankes.coloros.notify.ui.component.rememberMiuixPageBackdrop
@@ -55,7 +54,6 @@ import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -68,8 +66,6 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Download
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
-import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -86,11 +82,6 @@ fun HomeScreen(
     snackbarHostState: SnackbarHostState,
     onSyncRules: ((String) -> Unit) -> Unit,
     onRestartSystemUi: ((String) -> Unit) -> Unit,
-    onRulesEnabledChange: (Boolean, (String) -> Unit) -> Unit,
-    onIconSourceModeChange: (RuleStore.IconSourceMode, (String) -> Unit) -> Unit,
-    onPanelIconReplacementEnabledChange: (Boolean, (String) -> Unit) -> Unit,
-    onOplusPushSpecialHandlingEnabledChange: (Boolean, (String) -> Unit) -> Unit,
-    onPlaceholderIconEnabledChange: (Boolean, (String) -> Unit) -> Unit,
 ) {
     val scrollBehavior = MiuixScrollBehavior()
     val backdrop = rememberMiuixPageBackdrop()
@@ -129,24 +120,6 @@ fun HomeScreen(
             item { StatusOverview(state = state) }
             item {
                 PreferenceGroup {
-                    SettingsCard(
-                        state = state,
-                        onIconSourceModeChange = { onIconSourceModeChange(it, ::showSnackbar) },
-                        onRulesEnabledChange = { onRulesEnabledChange(it, ::showSnackbar) },
-                        onPanelIconReplacementEnabledChange = {
-                            onPanelIconReplacementEnabledChange(it, ::showSnackbar)
-                        },
-                        onOplusPushSpecialHandlingEnabledChange = {
-                            onOplusPushSpecialHandlingEnabledChange(it, ::showSnackbar)
-                        },
-                        onPlaceholderIconEnabledChange = {
-                            onPlaceholderIconEnabledChange(it, ::showSnackbar)
-                        },
-                    )
-                }
-            }
-            item {
-                PreferenceGroup {
                     RulesCard(
                         state = state,
                         onSyncRules = { onSyncRules(::showSnackbar) },
@@ -164,75 +137,6 @@ fun HomeScreen(
         onConfirm = {
             showRestartDialog = false
             onRestartSystemUi(::showSnackbar)
-        },
-    )
-}
-
-@Composable
-private fun SettingsCard(
-    state: HomeScreenState,
-    onIconSourceModeChange: (RuleStore.IconSourceMode) -> Unit,
-    onRulesEnabledChange: (Boolean) -> Unit,
-    onPanelIconReplacementEnabledChange: (Boolean) -> Unit,
-    onOplusPushSpecialHandlingEnabledChange: (Boolean) -> Unit,
-    onPlaceholderIconEnabledChange: (Boolean) -> Unit,
-) {
-    val canEditConfig = state.canEditConfig
-    val ruleLibraryMode = state.config.iconSourceMode == RuleStore.IconSourceMode.RuleLibrary
-    IconSourceRow(state = state, onIconSourceModeChange = onIconSourceModeChange)
-    ToggleComponent(
-        title = stringResource(R.string.label_icon_enhancement_enabled),
-        checked = state.config.rulesEnabled,
-        enabled = canEditConfig,
-        onCheckedChange = onRulesEnabledChange,
-    )
-    ToggleComponent(
-        title = stringResource(R.string.label_panel_icon_replacement_enabled),
-        checked = state.config.panelIconReplacementEnabled,
-        enabled = canEditConfig,
-        onCheckedChange = onPanelIconReplacementEnabledChange,
-    )
-    if (ruleLibraryMode) {
-        ToggleComponent(
-            title = stringResource(R.string.label_oplus_push_special_handling_enabled),
-            checked = state.config.oplusPushSpecialHandlingEnabled,
-            enabled = canEditConfig && state.config.rulesEnabled,
-            onCheckedChange = onOplusPushSpecialHandlingEnabledChange,
-        )
-        ToggleComponent(
-            title = stringResource(R.string.label_placeholder_icon_enabled),
-            checked = state.config.placeholderIconEnabled,
-            enabled = canEditConfig && state.config.rulesEnabled,
-            onCheckedChange = onPlaceholderIconEnabledChange,
-        )
-    }
-}
-
-@Composable
-private fun IconSourceRow(
-    state: HomeScreenState,
-    onIconSourceModeChange: (RuleStore.IconSourceMode) -> Unit,
-) {
-    val canEditConfig = state.canEditConfig
-    val current = state.config.iconSourceMode
-    val modes = RuleStore.IconSourceMode.entries
-    val selectedIndex = modes.indexOf(current).coerceAtLeast(0)
-    val ruleLibraryTitle = stringResource(R.string.label_icon_source_rule_library)
-    val ruleLibrarySummary = stringResource(R.string.label_icon_source_rule_library_summary)
-    val desktopThemeTitle = stringResource(R.string.label_icon_source_desktop_theme)
-    val desktopThemeSummary = stringResource(R.string.label_icon_source_desktop_theme_summary)
-    val items = listOf(
-        DropdownItem(text = ruleLibraryTitle, summary = ruleLibrarySummary),
-        DropdownItem(text = desktopThemeTitle, summary = desktopThemeSummary),
-    )
-    OverlaySpinnerPreference(
-        title = stringResource(R.string.label_icon_source_mode),
-        items = items,
-        selectedIndex = selectedIndex,
-        enabled = canEditConfig,
-        onSelectedIndexChange = { index ->
-            val mode = modes[index]
-            if (mode != current) onIconSourceModeChange(mode)
         },
     )
 }
@@ -516,21 +420,6 @@ private fun RulesCard(
 }
 
 @Composable
-private fun ToggleComponent(
-    title: String,
-    checked: Boolean,
-    enabled: Boolean = true,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    SwitchPreference(
-        title = title,
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        enabled = enabled,
-    )
-}
-
-@Composable
 private fun RestartDialog(
     show: Boolean,
     onDismiss: () -> Unit,
@@ -657,11 +546,6 @@ private fun HomeScreenPreview(state: HomeScreenState) {
         snackbarHostState = snackbarHostState,
         onSyncRules = {},
         onRestartSystemUi = {},
-        onRulesEnabledChange = { _, _ -> },
-        onIconSourceModeChange = { _, _ -> },
-        onPanelIconReplacementEnabledChange = { _, _ -> },
-        onOplusPushSpecialHandlingEnabledChange = { _, _ -> },
-        onPlaceholderIconEnabledChange = { _, _ -> },
     )
 }
 

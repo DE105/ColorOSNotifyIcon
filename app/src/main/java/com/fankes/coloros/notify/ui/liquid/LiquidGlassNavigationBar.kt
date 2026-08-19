@@ -91,7 +91,7 @@ import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.Platform
 import top.yukonga.miuix.kmp.utils.platform
-import com.fankes.coloros.notify.ui.share.LocalDarkTheme
+import com.fankes.coloros.notify.ui.theme.LocalAppDarkMode
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -195,10 +195,11 @@ fun IosLiquidGlassNavigationBar(
     onItemClick: (Int) -> Unit,
     backdrop: LayerBackdrop?,
     isBlurActive: Boolean,
+    showLabels: Boolean = true,
     modifier: Modifier = Modifier,
     badge: (Int) -> (@Composable () -> Unit)? = { null },
 ) {
-    val isDark = LocalDarkTheme.current
+    val isDark = LocalAppDarkMode.current
     val pillShape = remember { CircleShape }
     val accentColor = MiuixTheme.colorScheme.primary
     val tabContentColor = MiuixTheme.colorScheme.onSurface
@@ -351,17 +352,18 @@ fun IosLiquidGlassNavigationBar(
                     Icon(
                         modifier = Modifier.size(22.dp),
                         imageVector = item.icon,
-                        // Decorative: the adjacent label names the item; avoids TalkBack double-read.
-                        contentDescription = null,
+                        contentDescription = if (showLabels) null else item.label,
                     )
                 }
-                Text(
-                    text = item.label,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (showLabels) {
+                    Text(
+                        text = item.label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

@@ -10,6 +10,7 @@ activity-compose = "1.13.0"
 androidx-navigationevent = "1.1.2"
 miuix = "0.9.4-rc01"
 junit = "4.13.2"
+hiddenapibypass = "6.1"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -31,5 +32,7 @@ miuix-icons-android = { group = "top.yukonga.miuix.kmp", name = "miuix-icons-and
 miuix-preference-android = { group = "top.yukonga.miuix.kmp", name = "miuix-preference-android", version.ref = "miuix" }
 miuix-blur-android = { group = "top.yukonga.miuix.kmp", name = "miuix-blur-android", version.ref = "miuix" }
 miuix-nav-android = { group = "top.yukonga.miuix.kmp", name = "miuix-nav-android", version.ref = "miuix" }
+miuix-squircle-android = { group = "top.yukonga.miuix.kmp", name = "miuix-squircle-android", version.ref = "miuix" }
 compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+hiddenapibypass = { module = "org.lsposed.hiddenapibypass:hiddenapibypass", version.ref = "hiddenapibypass" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
