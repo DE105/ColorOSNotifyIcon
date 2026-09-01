@@ -95,12 +95,16 @@ jobs:
             "$unsigned_source"
           unset RELEASE_STORE_PASSWORD RELEASE_KEY_PASSWORD RELEASE_KEY_ALIAS
           "$build_tools/apksigner" verify --verbose --print-certs "$release_target"
+          artifact_dir="${RUNNER_TEMP}/release-artifact"
+          mkdir -p "$artifact_dir"
+          cp "$release_target" "$artifact_dir/Glyph-${version_name}.apk"
           echo "apk_path=$release_target" >> "$GITHUB_OUTPUT"
+          echo "artifact_dir=$artifact_dir" >> "$GITHUB_OUTPUT"
 
       - name: Upload production-signed artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          path: ${{ steps.release.outputs.apk_path }}
-          archive: false
+          name: Glyph-release-apk
+          path: ${{ steps.release.outputs.artifact_dir }}
           if-no-files-found: error
           retention-days: 14
