@@ -61,6 +61,7 @@ fun AboutScreen(
     onRulesEnabledChange: (Boolean) -> Unit,
     onIconSourceModeChange: (RuleStore.IconSourceMode) -> Unit,
     onPanelIconReplacementEnabledChange: (Boolean) -> Unit,
+    onLockScreenCapsuleIconReplacementEnabledChange: (Boolean) -> Unit,
     onOplusPushSpecialHandlingEnabledChange: (Boolean) -> Unit,
     onPlaceholderIconEnabledChange: (Boolean) -> Unit,
     onLauncherIconHiddenChange: (Boolean) -> Unit,
@@ -87,6 +88,8 @@ fun AboutScreen(
                 onRulesEnabledChange = onRulesEnabledChange,
                 onIconSourceModeChange = onIconSourceModeChange,
                 onPanelIconReplacementEnabledChange = onPanelIconReplacementEnabledChange,
+                onLockScreenCapsuleIconReplacementEnabledChange =
+                    onLockScreenCapsuleIconReplacementEnabledChange,
                 onOplusPushSpecialHandlingEnabledChange = onOplusPushSpecialHandlingEnabledChange,
                 onPlaceholderIconEnabledChange = onPlaceholderIconEnabledChange,
                 onLauncherIconHiddenChange = onLauncherIconHiddenChange,
@@ -119,6 +122,7 @@ private fun SettingsMainScreen(
     onRulesEnabledChange: (Boolean) -> Unit,
     onIconSourceModeChange: (RuleStore.IconSourceMode) -> Unit,
     onPanelIconReplacementEnabledChange: (Boolean) -> Unit,
+    onLockScreenCapsuleIconReplacementEnabledChange: (Boolean) -> Unit,
     onOplusPushSpecialHandlingEnabledChange: (Boolean) -> Unit,
     onPlaceholderIconEnabledChange: (Boolean) -> Unit,
     onLauncherIconHiddenChange: (Boolean) -> Unit,
@@ -164,6 +168,8 @@ private fun SettingsMainScreen(
                             onIconSourceModeChange = onIconSourceModeChange,
                             onRulesEnabledChange = onRulesEnabledChange,
                             onPanelIconReplacementEnabledChange = onPanelIconReplacementEnabledChange,
+                            onLockScreenCapsuleIconReplacementEnabledChange =
+                                onLockScreenCapsuleIconReplacementEnabledChange,
                             onOplusPushSpecialHandlingEnabledChange = onOplusPushSpecialHandlingEnabledChange,
                             onPlaceholderIconEnabledChange = onPlaceholderIconEnabledChange,
                         )

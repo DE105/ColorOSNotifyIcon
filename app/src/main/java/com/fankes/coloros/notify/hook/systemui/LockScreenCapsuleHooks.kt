@@ -28,6 +28,9 @@ internal class LockScreenCapsuleHooks(
     private val replacementDrawables =
         Collections.newSetFromMap(WeakHashMap<Drawable, Boolean>())
 
+    private fun lockScreenCapsuleEnabled(): Boolean =
+        configuration.snapshot.config.lockScreenCapsuleIconReplacementEnabled
+
     fun install() {
         installNotificationIconDataCtorHooks()
         installGetRoundedIconHook()
@@ -40,6 +43,7 @@ internal class LockScreenCapsuleHooks(
     private fun installNotificationIconDataCtorHooks() {
         for (ctor in members.notificationIconDataCtors) {
             hooks.install(ctor, "systemui.lockscreen.capsule.notificationIconData") { chain ->
+                if (!lockScreenCapsuleEnabled()) return@install chain.proceed()
                 if (isMediaPlayerArg(chain.args.getOrNull(7))) return@install chain.proceed()
                 val context = appContext() ?: return@install chain.proceed()
                 patchNotificationIconData(
@@ -62,6 +66,7 @@ internal class LockScreenCapsuleHooks(
     private fun installGetRoundedIconHook() {
         val method = members.capsuleGetRoundedIcon ?: return
         hooks.install(method, "systemui.lockscreen.capsule.getRoundedIcon") { chain ->
+            if (!lockScreenCapsuleEnabled()) return@install chain.proceed()
             val iconData = chain.args.getOrNull(0) ?: return@install chain.proceed()
             val context = (chain.thisObject as? View)?.context ?: return@install chain.proceed()
             try {
@@ -92,6 +97,7 @@ internal class LockScreenCapsuleHooks(
     private fun installWrapWithWhiteBgHook() {
         val method = members.wrapWithWhiteBg ?: return
         hooks.install(method, "systemui.lockscreen.capsule.wrapWithWhiteBg") { chain ->
+            if (!lockScreenCapsuleEnabled()) return@install chain.proceed()
             val drawable = chain.args.getOrNull(0) as? Drawable
             if (drawable != null && replacementDrawables.contains(drawable)) {
                 drawable
@@ -108,6 +114,7 @@ internal class LockScreenCapsuleHooks(
         )
         for (method in cardMethods) {
             hooks.install(method, "systemui.lockscreen.capsule.card_bind") { chain ->
+                if (!lockScreenCapsuleEnabled()) return@install chain.proceed()
                 val innerData = chain.args.getOrNull(0) ?: return@install chain.proceed()
                 val card = chain.thisObject ?: return@install chain.proceed()
                 chain.proceed()
@@ -125,6 +132,7 @@ internal class LockScreenCapsuleHooks(
         )
         for (method in colorHooks) {
             hooks.install(method, "systemui.lockscreen.capsule.group_icon_color") { chain ->
+                if (!lockScreenCapsuleEnabled()) return@install chain.proceed()
                 val entryIndex = if (java.lang.reflect.Modifier.isStatic(method.modifiers)) 3 else 2
                 val iconIndex = if (java.lang.reflect.Modifier.isStatic(method.modifiers)) 2 else 1
                 val entry = chain.args.getOrNull(entryIndex) ?: return@install chain.proceed()
@@ -143,6 +151,7 @@ internal class LockScreenCapsuleHooks(
     private fun installCapsuleEntryIconDrawableHook() {
         val method = members.groupIconInitEntryIconDrawable ?: return
         hooks.install(method, "systemui.lockscreen.capsule.initEntryIconDrawable") { chain ->
+            if (!lockScreenCapsuleEnabled()) return@install chain.proceed()
             if (chain.args.getOrNull(4) as? Boolean != true) return@install chain.proceed()
             val entry = chain.args.getOrNull(0) ?: return@install chain.proceed()
             val iconView = chain.args.getOrNull(1) as? ImageView
@@ -269,6 +278,7 @@ internal class LockScreenCapsuleHooks(
         packageName: String?,
         sbn: StatusBarNotification?,
     ): ReplacementPlan? {
+        if (!lockScreenCapsuleEnabled()) return null
         StatusBarIconReplacementCache.lookup(key, packageName)?.let { cached ->
             val drawable = try {
                 cached.icon.loadDrawable(context)?.mutate()

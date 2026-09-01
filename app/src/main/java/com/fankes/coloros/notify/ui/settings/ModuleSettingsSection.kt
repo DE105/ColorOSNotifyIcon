@@ -15,6 +15,7 @@ fun ModuleSettingsSection(
     onIconSourceModeChange: (RuleStore.IconSourceMode) -> Unit,
     onRulesEnabledChange: (Boolean) -> Unit,
     onPanelIconReplacementEnabledChange: (Boolean) -> Unit,
+    onLockScreenCapsuleIconReplacementEnabledChange: (Boolean) -> Unit,
     onOplusPushSpecialHandlingEnabledChange: (Boolean) -> Unit,
     onPlaceholderIconEnabledChange: (Boolean) -> Unit,
 ) {
@@ -32,6 +33,12 @@ fun ModuleSettingsSection(
         checked = state.config.panelIconReplacementEnabled,
         enabled = canEditConfig,
         onCheckedChange = onPanelIconReplacementEnabledChange,
+    )
+    ToggleComponent(
+        title = stringResource(R.string.label_lock_screen_capsule_icon_replacement_enabled),
+        checked = state.config.lockScreenCapsuleIconReplacementEnabled,
+        enabled = canEditConfig,
+        onCheckedChange = onLockScreenCapsuleIconReplacementEnabledChange,
     )
     if (ruleLibraryMode) {
         ToggleComponent(

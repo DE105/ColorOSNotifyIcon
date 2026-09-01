@@ -407,7 +407,7 @@ private fun AboutContent(
                                     "Glyph" to ModuleInfo.PROJECT_URL,
                                     "ColorOSNotifyIcon" to "https://github.com/fankes/ColorOSNotifyIcon",
                                     "miuix" to "https://github.com/compose-miuix-ui/miuix",
-                                    "AndroidNotifyIconAdapt" to "https://github.com/fankes/AndroidNotifyIconAdapt",
+                                    "Android Notification Icon Project" to ModuleInfo.ANIP_PROJECT_URL,
                                 )
                             }
                             ossProjects.forEach { (name, url) ->

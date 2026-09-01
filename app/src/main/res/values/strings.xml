@@ -74,7 +74,7 @@
     <string name="about_upstream">上游项目</string>
     <string name="about_upstream_fankes">fankes/ColorOSNotifyIcon</string>
     <string name="about_rules_source">图标规则库</string>
-    <string name="about_rules_source_adapt">AndroidNotifyIconAdapt</string>
+    <string name="about_rules_source_adapt">Android Notification Icon Project</string>
     <string name="home_card_rules">规则</string>
     <string name="home_card_enabled">已启用</string>
     <string name="home_info_system_version">系统版本</string>
@@ -108,6 +108,7 @@
     <string name="label_icon_source_desktop_theme">桌面主题</string>
     <string name="label_icon_source_desktop_theme_summary">跟随桌面当前主题或自定义图标，不混用规则库</string>
     <string name="label_panel_icon_replacement_enabled">通知中心图标</string>
+    <string name="label_lock_screen_capsule_icon_replacement_enabled">锁屏岛图标优化</string>
     <string name="label_oplus_push_special_handling_enabled">适配系统推送</string>
     <string name="label_placeholder_icon_enabled">未适配图标占位</string>
     <string name="label_hide_launcher_icon">隐藏桌面图标</string>

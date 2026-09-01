@@ -1,13 +1,10 @@
 package com.fankes.coloros.notify.rules
 
-import com.fankes.coloros.notify.core.ModuleInfo
 import com.fankes.coloros.notify.diagnostics.AppDiagnostics
 import com.fankes.coloros.notify.diagnostics.DiagnosticEvent
 import com.fankes.coloros.notify.diagnostics.DiagnosticLevel
 import com.fankes.coloros.notify.framework.MainThreadCallbacks
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import org.json.JSONArray
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -58,8 +55,8 @@ object RuleRepository {
     }
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .callTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .callTimeout(180, TimeUnit.SECONDS)
         .build()
 
     fun syncRules(onResult: (Result<SyncResult>) -> Unit) {
@@ -85,14 +82,10 @@ object RuleRepository {
     }
 
     private fun syncBlocking(): SyncResult {
-        val osRules = download("ColorOS", ModuleInfo.RULES_OS_URLS, MAX_TOTAL_DOWNLOAD_BYTES)
-        val appRules = download(
-            source = "applications",
-            urls = ModuleInfo.RULES_APP_URLS,
-            maxBytes = MAX_TOTAL_DOWNLOAD_BYTES - osRules.byteCount,
-        )
         val merged = try {
-            mergeArrays(osRules.json, appRules.json)
+            AnipRuleSource.sync(httpClient)
+        } catch (exception: RuleRepository.SyncFailure) {
+            throw exception
         } catch (exception: Exception) {
             throw SyncFailure.InvalidPayload(exception)
         }
@@ -115,59 +108,6 @@ object RuleRepository {
         return SyncResult(count = catalog.size, updatedAt = updatedAt)
     }
 
-    private data class DownloadedPayload(
-        val json: String,
-        val byteCount: Int,
-    )
-
-    private fun download(
-        source: String,
-        urls: List<String>,
-        maxBytes: Int,
-    ): DownloadedPayload {
-        require(maxBytes > 0) { "Combined rule payload exceeds $MAX_TOTAL_DOWNLOAD_BYTES bytes" }
-        require(urls.isNotEmpty()) { "No rule catalog URL configured for $source" }
-        var firstFailure: Exception? = null
-        for (url in urls) {
-            try {
-                return downloadOnce(url, maxBytes)
-            } catch (exception: Exception) {
-                if (firstFailure == null) {
-                    firstFailure = exception
-                } else {
-                    firstFailure.addSuppressed(exception)
-                }
-            }
-        }
-        throw SyncFailure.Download(source, firstFailure ?: IllegalStateException("No download attempts"))
-    }
-
-    private fun downloadOnce(url: String, maxBytes: Int): DownloadedPayload {
-        val request = Request.Builder().url(url).get().build()
-        httpClient.newCall(request).execute().use { response ->
-            check(response.isSuccessful) { "HTTP ${response.code}" }
-            val contentLength = response.body.contentLength()
-            require(contentLength < 0L || contentLength <= maxBytes) {
-                "Response exceeds remaining rule payload budget"
-            }
-            val bytes = response.body.byteStream().use { input ->
-                RulePayloadIO.readBytes(input, maxBytes)
-            }
-            val json = bytes.toString(Charsets.UTF_8).trim()
-            require(json.startsWith("[")) { "Response is not a JSON array" }
-            return DownloadedPayload(json, bytes.size)
-        }
-    }
-
-    private fun mergeArrays(left: String, right: String): String {
-        val merged = JSONArray()
-        val leftArray = JSONArray(left)
-        val rightArray = JSONArray(right)
-        for (index in 0 until leftArray.length()) merged.put(leftArray.get(index))
-        for (index in 0 until rightArray.length()) merged.put(rightArray.get(index))
-        return merged.toString()
-    }
-
     private fun logFailure(exception: Exception) {
         val event = when (exception) {
             is SyncFailure.InvalidPayload -> DiagnosticEvent.RulesParseFailed
@@ -185,5 +125,4 @@ object RuleRepository {
         )
     }
 
-    private const val MAX_TOTAL_DOWNLOAD_BYTES = RulePayloadIO.MAX_PAYLOAD_BYTES
 }

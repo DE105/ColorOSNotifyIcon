@@ -73,6 +73,8 @@ class HomeActivity : ComponentActivity() {
                     onRulesEnabledChange = ::setRulesEnabled,
                     onIconSourceModeChange = ::setIconSourceMode,
                     onPanelIconReplacementEnabledChange = ::setPanelIconReplacementEnabled,
+                    onLockScreenCapsuleIconReplacementEnabledChange =
+                        ::setLockScreenCapsuleIconReplacementEnabled,
                     onOplusPushSpecialHandlingEnabledChange = ::setOplusPushSpecialHandlingEnabled,
                     onPlaceholderIconEnabledChange = ::setPlaceholderIconEnabled,
                     onLauncherIconHiddenChange = ::setLauncherIconHidden,
@@ -149,6 +151,16 @@ class HomeActivity : ComponentActivity() {
     private fun setPanelIconReplacementEnabled(enabled: Boolean, onShowMessage: (String) -> Unit) {
         val service = requireFrameworkService(onShowMessage) ?: return
         updateConfig(service, onShowMessage) { RuleStore.setPanelIconReplacementEnabled(enabled) }
+    }
+
+    private fun setLockScreenCapsuleIconReplacementEnabled(
+        enabled: Boolean,
+        onShowMessage: (String) -> Unit,
+    ) {
+        val service = requireFrameworkService(onShowMessage) ?: return
+        updateConfig(service, onShowMessage) {
+            RuleStore.setLockScreenCapsuleIconReplacementEnabled(enabled)
+        }
     }
 
     private fun setOplusPushSpecialHandlingEnabled(enabled: Boolean, onShowMessage: (String) -> Unit) {

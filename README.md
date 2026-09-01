@@ -91,11 +91,11 @@ Oplus Push 代表目标应用生成的位图不等同于应用原生 `smallIcon`
 
 ## 规则来源
 
-沿用 `AndroidNotifyIconAdapt` 规则仓库：
+沿用 [Android Notification Icon Project (ANIP)](https://github.com/BetterAndroid/android-notification-icon-project) 规则仓库：
 
-- [Android 通知图标规范适配计划](https://github.com/fankes/AndroidNotifyIconAdapt)
-- [ColorOS 规则](https://raw.githubusercontent.com/fankes/AndroidNotifyIconAdapt/main/OS/ColorOS/NotifyIconsSupportConfig.json)
-- [APP 规则](https://raw.githubusercontent.com/fankes/AndroidNotifyIconAdapt/main/APP/NotifyIconsSupportConfig.json)
+- [Android Notification Icon Project](https://github.com/BetterAndroid/android-notification-icon-project)
+- [ColorOS 规则清单](https://raw.githubusercontent.com/BetterAndroid/android-notification-icon-project/main/icons/system/coloros/manifest.json)
+- [APP 规则清单](https://raw.githubusercontent.com/BetterAndroid/android-notification-icon-project/main/icons/app/manifest.json)
 
 同步时先合并 ColorOS 规则，再合并 APP 规则。同一包名出现两次的，以 APP 规则为准。
 

@@ -10,16 +10,19 @@ object ModuleInfo {
     const val PROJECT_URL = "https://github.com/Mangi-11/Glyph"
     const val RELEASES_PAGE = "$PROJECT_URL/releases"
     const val RELEASES_API = "https://api.github.com/repos/Mangi-11/Glyph/releases/latest"
-    const val RULES_BASE_URL = "https://raw.githubusercontent.com/fankes/AndroidNotifyIconAdapt/main"
-    private const val RULES_CDN_BASE_URL = "https://cdn.jsdelivr.net/gh/fankes/AndroidNotifyIconAdapt@main"
-    const val RULES_OS_URL = "$RULES_BASE_URL/OS/ColorOS/NotifyIconsSupportConfig.json"
-    const val RULES_APP_URL = "$RULES_BASE_URL/APP/NotifyIconsSupportConfig.json"
-    val RULES_OS_URLS = listOf(
-        RULES_OS_URL,
-        "$RULES_CDN_BASE_URL/OS/ColorOS/NotifyIconsSupportConfig.json",
+    const val ANIP_REPO = "BetterAndroid/android-notification-icon-project"
+    const val ANIP_BRANCH = "main"
+    const val ANIP_RAW_BASE = "https://raw.githubusercontent.com/$ANIP_REPO/$ANIP_BRANCH"
+    const val ANIP_CDN_BASE = "https://cdn.jsdelivr.net/gh/$ANIP_REPO@$ANIP_BRANCH"
+    const val ANIP_PROJECT_URL = "https://github.com/$ANIP_REPO"
+    const val ANIP_APP_MANIFEST_URL = "$ANIP_RAW_BASE/icons/app/manifest.json"
+    const val ANIP_COLOROS_MANIFEST_URL = "$ANIP_RAW_BASE/icons/system/coloros/manifest.json"
+    val ANIP_APP_MANIFEST_URLS = listOf(
+        ANIP_APP_MANIFEST_URL,
+        "$ANIP_CDN_BASE/icons/app/manifest.json",
     )
-    val RULES_APP_URLS = listOf(
-        RULES_APP_URL,
-        "$RULES_CDN_BASE_URL/APP/NotifyIconsSupportConfig.json",
+    val ANIP_COLOROS_MANIFEST_URLS = listOf(
+        ANIP_COLOROS_MANIFEST_URL,
+        "$ANIP_CDN_BASE/icons/system/coloros/manifest.json",
     )
 }
