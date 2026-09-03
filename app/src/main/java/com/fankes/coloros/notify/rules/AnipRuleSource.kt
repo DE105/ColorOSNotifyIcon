@@ -14,6 +14,7 @@ internal object AnipRuleSource {
 
     private enum class CatalogKind(val resSegment: String) {
         App("icons/app/res"),
+        Game("icons/game/res"),
         ColorOs("icons/system/coloros/res"),
     }
 
@@ -23,12 +24,17 @@ internal object AnipRuleSource {
             urls = ModuleInfo.ANIP_COLOROS_MANIFEST_URLS,
             source = "ColorOS",
         )
+        val gameManifest = downloadManifest(
+            httpClient = httpClient,
+            urls = ModuleInfo.ANIP_GAME_MANIFEST_URLS,
+            source = "games",
+        )
         val appManifest = downloadManifest(
             httpClient = httpClient,
             urls = ModuleInfo.ANIP_APP_MANIFEST_URLS,
             source = "applications",
         )
-        val entries = mergeManifests(colorOsManifest, appManifest)
+        val entries = mergeManifests(colorOsManifest, gameManifest, appManifest)
         val inputs = downloadRuleInputs(httpClient, entries)
         check(inputs.isNotEmpty()) { "No rule entries could be downloaded from ANIP" }
         return inputsToJson(inputs)
@@ -60,23 +66,23 @@ internal object AnipRuleSource {
 
     private fun mergeManifests(
         colorOsManifest: JSONObject,
+        gameManifest: JSONObject,
         appManifest: JSONObject,
     ): Map<String, CatalogEntry> {
         val merged = linkedMapOf<String, CatalogEntry>()
-        colorOsManifest.keys().forEach { packageName ->
-            merged[packageName] = CatalogEntry(
-                packageName = packageName,
-                kind = CatalogKind.ColorOs,
-                raw = colorOsManifest.getJSONObject(packageName),
-            )
+        fun putAll(manifest: JSONObject, kind: CatalogKind) {
+            manifest.keys().forEach { packageName ->
+                merged[packageName] = CatalogEntry(
+                    packageName = packageName,
+                    kind = kind,
+                    raw = manifest.getJSONObject(packageName),
+                )
+            }
         }
-        appManifest.keys().forEach { packageName ->
-            merged[packageName] = CatalogEntry(
-                packageName = packageName,
-                kind = CatalogKind.App,
-                raw = appManifest.getJSONObject(packageName),
-            )
-        }
+        // Later sources override earlier ones for the same package.
+        putAll(colorOsManifest, CatalogKind.ColorOs)
+        putAll(gameManifest, CatalogKind.Game)
+        putAll(appManifest, CatalogKind.App)
         return merged
     }
 

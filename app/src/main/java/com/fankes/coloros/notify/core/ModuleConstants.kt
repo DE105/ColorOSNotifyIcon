@@ -16,10 +16,15 @@ object ModuleInfo {
     const val ANIP_CDN_BASE = "https://cdn.jsdelivr.net/gh/$ANIP_REPO@$ANIP_BRANCH"
     const val ANIP_PROJECT_URL = "https://github.com/$ANIP_REPO"
     const val ANIP_APP_MANIFEST_URL = "$ANIP_RAW_BASE/icons/app/manifest.json"
+    const val ANIP_GAME_MANIFEST_URL = "$ANIP_RAW_BASE/icons/game/manifest.json"
     const val ANIP_COLOROS_MANIFEST_URL = "$ANIP_RAW_BASE/icons/system/coloros/manifest.json"
     val ANIP_APP_MANIFEST_URLS = listOf(
         ANIP_APP_MANIFEST_URL,
         "$ANIP_CDN_BASE/icons/app/manifest.json",
+    )
+    val ANIP_GAME_MANIFEST_URLS = listOf(
+        ANIP_GAME_MANIFEST_URL,
+        "$ANIP_CDN_BASE/icons/game/manifest.json",
     )
     val ANIP_COLOROS_MANIFEST_URLS = listOf(
         ANIP_COLOROS_MANIFEST_URL,

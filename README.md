@@ -95,9 +95,10 @@ Oplus Push 代表目标应用生成的位图不等同于应用原生 `smallIcon`
 
 - [Android Notification Icon Project](https://github.com/BetterAndroid/android-notification-icon-project)
 - [ColorOS 规则清单](https://raw.githubusercontent.com/BetterAndroid/android-notification-icon-project/main/icons/system/coloros/manifest.json)
+- [游戏规则清单](https://raw.githubusercontent.com/BetterAndroid/android-notification-icon-project/main/icons/game/manifest.json)
 - [APP 规则清单](https://raw.githubusercontent.com/BetterAndroid/android-notification-icon-project/main/icons/app/manifest.json)
 
-同步时先合并 ColorOS 规则，再合并 APP 规则。同一包名出现两次的，以 APP 规则为准。
+同步时按 ColorOS → 游戏 → APP 合并。同一包名出现多次的，以后者为准。
 
 ## 与原版的区别
 
